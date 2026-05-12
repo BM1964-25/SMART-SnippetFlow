@@ -305,7 +305,10 @@ export function LibraryPage({
             <div className="mb-5 grid gap-4">
               <div className="grid grid-cols-5 gap-3">
                 {dashboardStats.map((stat) => (
-                  <div key={stat.label} className="rounded-lg border border-border bg-card p-4 shadow-sm">
+                  <div
+                    key={stat.label}
+                    className="flex min-h-24 flex-col items-center justify-center rounded-lg border border-border bg-card p-4 text-center shadow-sm"
+                  >
                     <p className="text-xs text-muted-foreground">{stat.label}</p>
                     <p className="mt-2 text-2xl font-semibold">{stat.value}</p>
                   </div>
