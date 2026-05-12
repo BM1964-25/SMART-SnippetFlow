@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from "electron";
 import type {
   JsonExportResult,
   JsonImportResult,
+  FieldOption,
+  FieldOptionKey,
   LibraryCategory,
   LibraryEntry,
   LibraryEntryInput,
@@ -19,6 +21,13 @@ const api = {
   categories: {
     list: (): Promise<LibraryCategory[]> => ipcRenderer.invoke("categories:list"),
     save: (name: string): Promise<LibraryCategory> => ipcRenderer.invoke("categories:save", name),
+  },
+  fieldOptions: {
+    list: (): Promise<FieldOption[]> => ipcRenderer.invoke("field-options:list"),
+    create: (fieldKey: FieldOptionKey, label: string): Promise<FieldOption> =>
+      ipcRenderer.invoke("field-options:create", fieldKey, label),
+    rename: (id: string, label: string): Promise<FieldOption | null> => ipcRenderer.invoke("field-options:rename", id, label),
+    delete: (id: string): Promise<{ id: string; deleted: boolean }> => ipcRenderer.invoke("field-options:delete", id),
   },
   license: {
     get: (): Promise<LicenseState> => ipcRenderer.invoke("license:get"),

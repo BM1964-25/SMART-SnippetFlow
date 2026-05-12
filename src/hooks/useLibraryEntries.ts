@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { EntryType, LibraryCategory, LibraryEntry, LibraryEntryInput } from "@/types";
+import type { EntryType, FieldOption, LibraryCategory, LibraryEntry, LibraryEntryInput } from "@/types";
 import { demoEntries } from "@/db/demoData";
 
 export function useLibraryEntries(activeType: EntryType | "all", query: string) {
   const [entries, setEntries] = useState<LibraryEntry[]>(demoEntries);
   const [categories, setCategories] = useState<LibraryCategory[]>([]);
+  const [fieldOptions, setFieldOptions] = useState<FieldOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(() => {
@@ -12,16 +13,19 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
     return Promise.all([
       window.snippetFlow?.library.list() ?? Promise.resolve(demoEntries),
       window.snippetFlow?.categories.list() ?? Promise.resolve([]),
+      window.snippetFlow?.fieldOptions.list() ?? Promise.resolve([]),
     ])
-      .then(([storedEntries, storedCategories]) => {
+      .then(([storedEntries, storedCategories, storedFieldOptions]) => {
         if (storedEntries.length > 0) {
           setEntries(storedEntries);
         }
         setCategories(storedCategories);
+        setFieldOptions(storedFieldOptions);
       })
       .catch(() => {
         setEntries(demoEntries);
         setCategories([]);
+        setFieldOptions([]);
       })
       .finally(() => {
         setIsLoading(false);
@@ -82,6 +86,26 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
     return localCategory;
   }, []);
 
+  const createFieldOption = useCallback(async (fieldKey: FieldOption["fieldKey"], label: string) => {
+    const saved = await window.snippetFlow?.fieldOptions.create(fieldKey, label);
+
+    if (saved) {
+      setFieldOptions((current) => [...current.filter((option) => option.id !== saved.id), saved]);
+      return saved;
+    }
+
+    const localOption: FieldOption = {
+      id: crypto.randomUUID(),
+      fieldKey,
+      value: label,
+      label,
+      isSystem: false,
+      sortOrder: fieldOptions.length + 1,
+    };
+    setFieldOptions((current) => [...current, localOption]);
+    return localOption;
+  }, [fieldOptions.length]);
+
   const filteredEntries = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
@@ -89,7 +113,7 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
       const matchesType = activeType === "all" || entry.type === activeType;
       const matchesQuery =
         normalizedQuery.length === 0 ||
-        [entry.title, entry.description, entry.content, entry.language, ...entry.tags]
+        [entry.title, entry.description, entry.content, entry.language, entry.fieldValue, ...entry.tags]
           .filter(Boolean)
           .join(" ")
           .toLowerCase()
@@ -101,6 +125,7 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
 
   return {
     categories,
+    fieldOptions,
     entries,
     filteredEntries,
     isLoading,
@@ -109,6 +134,7 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
     toggleFavorite,
     deleteEntry,
     saveCategory,
+    createFieldOption,
     refresh,
   };
 }

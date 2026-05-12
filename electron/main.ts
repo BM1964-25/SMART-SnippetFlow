@@ -3,6 +3,8 @@ import fs from "node:fs/promises";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import {
   createExportPayload,
+  createFieldOption,
+  deleteFieldOption,
   duplicateEntry,
   getLicenseState,
   getSetting,
@@ -11,13 +13,15 @@ import {
   deleteEntry,
   listCategories,
   listEntries,
+  listFieldOptions,
+  renameFieldOption,
   saveCategory,
   saveEntry,
   saveLicenseState,
   saveSetting,
   toggleFavorite,
 } from "./storage.js";
-import type { LibraryEntryInput, LicenseState } from "../src/types/index.js";
+import type { FieldOptionKey, LibraryEntryInput, LicenseState } from "../src/types/index.js";
 
 const isDev = !app.isPackaged;
 
@@ -76,6 +80,10 @@ ipcMain.handle("library:favorite", (_event, id: string) => toggleFavorite(id));
 ipcMain.handle("library:delete", (_event, id: string) => deleteEntry(id));
 ipcMain.handle("categories:list", () => listCategories());
 ipcMain.handle("categories:save", (_event, name: string) => saveCategory(name));
+ipcMain.handle("field-options:list", () => listFieldOptions());
+ipcMain.handle("field-options:create", (_event, fieldKey: FieldOptionKey, label: string) => createFieldOption(fieldKey, label));
+ipcMain.handle("field-options:rename", (_event, id: string, label: string) => renameFieldOption(id, label));
+ipcMain.handle("field-options:delete", (_event, id: string) => deleteFieldOption(id));
 ipcMain.handle("settings:get", (_event, key: string) => getSetting(key));
 ipcMain.handle("settings:save", (_event, key: string, value: string) => saveSetting(key, value));
 ipcMain.handle("license:get", () => getLicenseState());

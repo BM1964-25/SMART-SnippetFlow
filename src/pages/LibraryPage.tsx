@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLibraryEntries } from "@/hooks/useLibraryEntries";
 import { createPreviewDescriptor, createSandboxPreviewHtml } from "@/services/preview";
-import type { AppView, EntryType, LibraryEntry, PreviewKind } from "@/types";
+import type { AppView, EntryType, FieldOptionKey, LibraryEntry, PreviewKind } from "@/types";
 import { cn } from "@/utils/cn";
 
 const filters: Array<{ label: string; value: EntryType | "all" }> = [
@@ -67,7 +67,7 @@ export function LibraryPage({
   const [newCategoryName, setNewCategoryName] = useState("");
   const [pendingSelectionId, setPendingSelectionId] = useState<string | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<LibraryEntry | null>(null);
-  const { categories, filteredEntries, entries, isLoading, saveEntry, duplicateEntry, toggleFavorite, deleteEntry, saveCategory } =
+  const { categories, fieldOptions, filteredEntries, entries, isLoading, saveEntry, duplicateEntry, toggleFavorite, deleteEntry, saveCategory, createFieldOption } =
     useLibraryEntries(activeType, query);
 
   const visibleEntries = useMemo(() => {
@@ -98,6 +98,13 @@ export function LibraryPage({
   const preview = draft ? createPreviewDescriptor(draft) : null;
   const previewHtml = createSandboxPreviewHtml(preview);
   const isDirty = Boolean(draft && selectedEntry && !areEntriesEqual(draft, selectedEntry));
+  const activeFieldKey = draft ? getFieldKeyForType(draft.type) : null;
+  const activeFieldLabel = draft ? getFieldLabelForType(draft.type) : "";
+  const activeFieldOptions = activeFieldKey
+    ? fieldOptions
+        .filter((option) => option.fieldKey === activeFieldKey)
+        .sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label))
+    : [];
   const dashboardStats = useMemo(() => createDashboardStats(entries), [entries]);
   const recentEntries = entries.slice(0, 5);
   const favoriteEntries = entries.filter((entry) => entry.isFavorite).slice(0, 5);
@@ -128,6 +135,7 @@ export function LibraryPage({
       description: "",
       content: type === "code" ? "// Neues Snippet" : type === "note" ? "## Notiz\n\n" : "",
       language: type === "code" ? "typescript" : "markdown",
+      fieldValue: getDefaultFieldValue(type),
       tags: [],
       isFavorite: false,
       previewKind: type === "workflow" || type === "note" ? "markdown" : undefined,
@@ -218,6 +226,34 @@ export function LibraryPage({
     setDraft({ ...draft, categoryId: category.id, categoryName: category.name });
     setNewCategoryName("");
     showNotice("Kategorie erstellt");
+  }
+
+  async function handleFieldValueChange(value: string) {
+    if (!draft || !activeFieldKey) {
+      return;
+    }
+
+    if (value === "__new__") {
+      const label = window.prompt(`${activeFieldLabel}: neuen Wert hinzufuegen`);
+      if (!label?.trim()) {
+        return;
+      }
+
+      const option = await createFieldOption(activeFieldKey, label.trim());
+      setDraft({
+        ...draft,
+        fieldValue: option.label,
+        language: draft.type === "code" ? option.value.toLowerCase() : draft.language,
+      });
+      showNotice("Auswahlwert hinzugefuegt");
+      return;
+    }
+
+    setDraft({
+      ...draft,
+      fieldValue: value || undefined,
+      language: draft.type === "code" ? value.toLowerCase() : draft.language,
+    });
   }
 
   function handleSelectEntry(id: string) {
@@ -340,6 +376,7 @@ export function LibraryPage({
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <Badge>{typeLabel[entry.type]}</Badge>
+                      {entry.fieldValue && <Badge>{entry.fieldValue}</Badge>}
                       {entry.categoryName && <Badge>{entry.categoryName}</Badge>}
                       {entry.isFavorite && <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />}
                     </div>
@@ -378,12 +415,22 @@ export function LibraryPage({
                     <option value="workflow">Workflow</option>
                     <option value="note">Notiz</option>
                   </select>
-                  <Input
-                    value={draft.language ?? ""}
-                    onChange={(event) => setDraft({ ...draft, language: event.target.value })}
-                    placeholder="Sprache"
-                    className="h-8 w-32"
-                  />
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                    {activeFieldLabel}
+                    <select
+                      value={draft.fieldValue ?? ""}
+                      onChange={(event) => void handleFieldValueChange(event.target.value)}
+                      className="h-8 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none"
+                    >
+                      <option value="">Nicht gesetzt</option>
+                      {activeFieldOptions.map((option) => (
+                        <option key={option.id} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                      <option value="__new__">Neuen Wert hinzufuegen...</option>
+                    </select>
+                  </label>
                   <select
                     value={draft.categoryId ?? ""}
                     onChange={(event) => {
@@ -653,4 +700,37 @@ function createDashboardStats(entries: LibraryEntry[]) {
     { label: "Notizen", value: entries.filter((entry) => entry.type === "note").length },
     { label: "Favoriten", value: entries.filter((entry) => entry.isFavorite).length },
   ];
+}
+
+function getFieldKeyForType(type: EntryType): FieldOptionKey {
+  const map: Record<EntryType, FieldOptionKey> = {
+    prompt: "aiSystem",
+    code: "language",
+    workflow: "workflowArea",
+    note: "noteCategory",
+  };
+
+  return map[type];
+}
+
+function getFieldLabelForType(type: EntryType) {
+  const map: Record<EntryType, string> = {
+    prompt: "KI-System",
+    code: "Sprache",
+    workflow: "Bereich",
+    note: "Kategorie",
+  };
+
+  return map[type];
+}
+
+function getDefaultFieldValue(type: EntryType) {
+  const map: Record<EntryType, string> = {
+    prompt: "Allgemein",
+    code: "TypeScript",
+    workflow: "Projekt",
+    note: "Allgemein",
+  };
+
+  return map[type];
 }

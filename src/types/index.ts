@@ -3,6 +3,7 @@ export type PreviewKind = "html" | "css" | "javascript" | "markdown";
 export type LicenseStatus = "active" | "expired" | "invalid";
 export type AppView = "all" | "prompts" | "code" | "workflows" | "notes" | "favorites" | "settings";
 export type ExportFormat = "json" | "markdown" | "txt";
+export type FieldOptionKey = "aiSystem" | "language" | "workflowArea" | "noteCategory";
 
 export interface LibraryEntry {
   id: string;
@@ -11,6 +12,7 @@ export interface LibraryEntry {
   description: string;
   content: string;
   language?: string;
+  fieldValue?: string;
   categoryId?: string;
   categoryName?: string;
   tags: string[];
@@ -32,6 +34,15 @@ export interface LibraryCategory {
   id: string;
   name: string;
   color?: string;
+}
+
+export interface FieldOption {
+  id: string;
+  fieldKey: FieldOptionKey;
+  value: string;
+  label: string;
+  isSystem: boolean;
+  sortOrder: number;
 }
 
 export interface AppSetting {

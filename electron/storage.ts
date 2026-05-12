@@ -6,6 +6,8 @@ import type {
   AppSetting,
   ExportFormat,
   ExportPayload,
+  FieldOption,
+  FieldOptionKey,
   LibraryCategory,
   LibraryEntry,
   LibraryEntryInput,
@@ -19,6 +21,7 @@ const LEGACY_DATABASE_FILE_NAME = "smart-snippetflow.sqlite";
 
 type EntryRow = Omit<LibraryEntry, "isFavorite" | "tags"> & {
   language: string | null;
+  fieldValue: string | null;
   categoryId: string | null;
   categoryName: string | null;
   isFavorite: 0 | 1;
@@ -39,6 +42,7 @@ const starterEntries: LibraryEntry[] = [
     content:
       "Analysiere die folgende Produktidee und verdichte sie in Zielgruppe, Kernnutzen, Risiken und naechste Schritte.",
     tags: ["Product", "Research"],
+    fieldValue: "Allgemein",
     categoryId: "ideen",
     categoryName: "Ideen",
     isFavorite: true,
@@ -50,6 +54,7 @@ const starterEntries: LibraryEntry[] = [
     description: "Kleine TypeScript-Hilfe zum Kopieren von Text in die Zwischenablage.",
     content: "export async function copyText(value: string) {\n  await navigator.clipboard.writeText(value);\n}",
     language: "typescript",
+    fieldValue: "TypeScript",
     tags: ["TypeScript", "Utility"],
     categoryId: "technik",
     categoryName: "Technik",
@@ -63,6 +68,7 @@ const starterEntries: LibraryEntry[] = [
     description: "Kurzer Ablauf zum Pruefen, Kuerzen und Wiederverwenden eines Snippets.",
     content: "1. Kontext pruefen\n2. Duplikate entfernen\n3. Tags ergaenzen\n4. Nutzbarkeit testen",
     tags: ["Workflow"],
+    fieldValue: "Projekt",
     categoryId: "dokumentation",
     categoryName: "Dokumentation",
     isFavorite: false,
@@ -76,11 +82,43 @@ const starterEntries: LibraryEntry[] = [
     content:
       "## Entscheidung\n\nSQLite bleibt lokal im Electron userData-Pfad.\n\n## Begruendung\n\nUpdates sollen Nutzerdaten nicht ueberschreiben.",
     tags: ["Architektur", "Lokal"],
+    fieldValue: "Architektur",
     categoryId: "architektur",
     categoryName: "Architektur",
     isFavorite: false,
     previewKind: "markdown",
   },
+];
+
+const systemFieldOptions: Array<Omit<FieldOption, "id">> = [
+  ...["Allgemein", "OpenAI", "Claude", "Gemini", "Codex", "Lokal", "Custom"].map((label, index) => ({
+    fieldKey: "aiSystem" as const,
+    value: label,
+    label,
+    isSystem: true,
+    sortOrder: index,
+  })),
+  ...["TypeScript", "JavaScript", "HTML", "CSS", "Python", "SQL", "JSON", "Bash", "Markdown"].map((label, index) => ({
+    fieldKey: "language" as const,
+    value: label,
+    label,
+    isSystem: true,
+    sortOrder: index,
+  })),
+  ...["Content", "Software", "Marketing", "Analyse", "Meeting", "Vertrieb", "Projekt"].map((label, index) => ({
+    fieldKey: "workflowArea" as const,
+    value: label,
+    label,
+    isSystem: true,
+    sortOrder: index,
+  })),
+  ...["Ideen", "Technik", "API", "Architektur", "Fehler", "Meetings", "Dokumentation", "Allgemein"].map((label, index) => ({
+    fieldKey: "noteCategory" as const,
+    value: label,
+    label,
+    isSystem: true,
+    sortOrder: index,
+  })),
 ];
 
 const starterCategories: LibraryCategory[] = [
@@ -129,6 +167,7 @@ export function initializeDatabase() {
       description TEXT,
       content TEXT NOT NULL,
       language TEXT,
+      field_value TEXT,
       category_id TEXT,
       is_favorite INTEGER NOT NULL DEFAULT 0,
       preview_kind TEXT CHECK (preview_kind IN ('html', 'css', 'javascript', 'markdown')),
@@ -158,9 +197,23 @@ export function initializeDatabase() {
       value TEXT NOT NULL,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS field_options (
+      id TEXT PRIMARY KEY,
+      field_key TEXT NOT NULL,
+      value TEXT NOT NULL,
+      label TEXT NOT NULL,
+      is_system INTEGER NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(field_key, value)
+    );
   `);
 
   migrateEntryTypeConstraint();
+  migrateEntryFieldValue();
+  seedSystemFieldOptions();
   seedStarterCategories();
   seedStarterEntries();
 }
@@ -175,6 +228,7 @@ export function listEntries(): LibraryEntry[] {
          entries.description,
          entries.content,
          entries.language,
+         entries.field_value as fieldValue,
          entries.category_id as categoryId,
          categories.name as categoryName,
          entries.is_favorite as isFavorite,
@@ -202,6 +256,7 @@ export function listEntries(): LibraryEntry[] {
   return rows.map((row) => ({
     ...row,
     language: row.language ?? undefined,
+    fieldValue: row.fieldValue ?? undefined,
     categoryId: row.categoryId ?? undefined,
     categoryName: row.categoryName ?? undefined,
     previewKind: row.previewKind ?? undefined,
@@ -218,7 +273,8 @@ export function saveEntry(entry: LibraryEntryInput): LibraryEntry {
     title: entry.title.trim() || "Unbenannter Eintrag",
     description: entry.description.trim(),
     content: entry.content,
-    language: entry.language?.trim() || undefined,
+    fieldValue: entry.fieldValue?.trim() || undefined,
+    language: entry.type === "code" ? normalizeCodeLanguage(entry.fieldValue ?? entry.language) : entry.language?.trim() || undefined,
     categoryId: entry.categoryId || undefined,
     categoryName: entry.categoryName,
     tags: normalizeTags(entry.tags),
@@ -230,14 +286,15 @@ export function saveEntry(entry: LibraryEntryInput): LibraryEntry {
   const write = database.transaction(() => {
     database
       .prepare(
-        `INSERT INTO entries (id, type, title, description, content, language, category_id, is_favorite, preview_kind, updated_at)
-         VALUES (@id, @type, @title, @description, @content, @language, @categoryId, @isFavorite, @previewKind, CURRENT_TIMESTAMP)
+        `INSERT INTO entries (id, type, title, description, content, language, field_value, category_id, is_favorite, preview_kind, updated_at)
+         VALUES (@id, @type, @title, @description, @content, @language, @fieldValue, @categoryId, @isFavorite, @previewKind, CURRENT_TIMESTAMP)
          ON CONFLICT(id) DO UPDATE SET
            type = excluded.type,
            title = excluded.title,
            description = excluded.description,
            content = excluded.content,
            language = excluded.language,
+           field_value = excluded.field_value,
            category_id = excluded.category_id,
            is_favorite = excluded.is_favorite,
            preview_kind = excluded.preview_kind,
@@ -247,6 +304,7 @@ export function saveEntry(entry: LibraryEntryInput): LibraryEntry {
         ...normalized,
         isFavorite: normalized.isFavorite ? 1 : 0,
         language: normalized.language ?? null,
+        fieldValue: normalized.fieldValue ?? null,
         categoryId: normalized.categoryId ?? null,
         previewKind: normalized.previewKind ?? null,
       });
@@ -290,6 +348,82 @@ export function saveCategory(name: string): LibraryCategory {
     .run(category);
 
   return category;
+}
+
+export function listFieldOptions(): FieldOption[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT
+         id,
+         field_key as fieldKey,
+         value,
+         label,
+         is_system as isSystem,
+         sort_order as sortOrder
+       FROM field_options
+       ORDER BY field_key ASC, sort_order ASC, label ASC`,
+    )
+    .all() as Array<Omit<FieldOption, "isSystem"> & { isSystem: 0 | 1 }>;
+
+  return rows.map((row) => ({ ...row, isSystem: Boolean(row.isSystem) }));
+}
+
+export function createFieldOption(fieldKey: FieldOptionKey, label: string): FieldOption {
+  const normalizedLabel = label.trim();
+  if (!normalizedLabel) {
+    throw new Error("Der Wert darf nicht leer sein.");
+  }
+
+  const option: FieldOption = {
+    id: crypto.randomUUID(),
+    fieldKey,
+    value: normalizedLabel,
+    label: normalizedLabel,
+    isSystem: false,
+    sortOrder: nextFieldOptionSortOrder(fieldKey),
+  };
+
+  getDb()
+    .prepare(
+      `INSERT INTO field_options (id, field_key, value, label, is_system, sort_order)
+       VALUES (@id, @fieldKey, @value, @label, @isSystem, @sortOrder)
+       ON CONFLICT(field_key, value) DO UPDATE SET
+         label = excluded.label,
+         updated_at = CURRENT_TIMESTAMP`,
+    )
+    .run({ ...option, isSystem: option.isSystem ? 1 : 0 });
+
+  return option;
+}
+
+export function renameFieldOption(id: string, label: string): FieldOption | null {
+  const existing = getFieldOption(id);
+  const normalizedLabel = label.trim();
+
+  if (!existing || existing.isSystem || !normalizedLabel) {
+    return null;
+  }
+
+  getDb()
+    .prepare(
+      `UPDATE field_options
+       SET value = ?, label = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND is_system = 0`,
+    )
+    .run(normalizedLabel, normalizedLabel, id);
+
+  return { ...existing, value: normalizedLabel, label: normalizedLabel };
+}
+
+export function deleteFieldOption(id: string) {
+  const existing = getFieldOption(id);
+
+  if (!existing || existing.isSystem) {
+    return { id, deleted: false };
+  }
+
+  getDb().prepare("DELETE FROM field_options WHERE id = ? AND is_system = 0").run(id);
+  return { id, deleted: true };
 }
 
 export function duplicateEntry(id: string): LibraryEntry | null {
@@ -395,6 +529,7 @@ export function importJsonPayload(content: string) {
   const parsed = JSON.parse(content) as Partial<{
     entries: LibraryEntryInput[];
     categories: LibraryCategory[];
+    fieldOptions: FieldOption[];
     settings: AppSetting[];
     license: LicenseState;
   }>;
@@ -405,51 +540,55 @@ export function importJsonPayload(content: string) {
 
   const entries = parsed.entries;
   const database = getDb();
-  const write = database.transaction(() => {
-    if (Array.isArray(parsed.categories)) {
-      for (const category of parsed.categories) {
-        if (category?.id && category.name) {
-          database
-            .prepare(
-              `INSERT INTO categories (id, name, color)
-               VALUES (@id, @name, @color)
-               ON CONFLICT(id) DO UPDATE SET
-                 name = excluded.name,
-                 color = excluded.color`,
-            )
-            .run({ ...category, color: category.color ?? null });
-        }
+  if (Array.isArray(parsed.categories)) {
+    for (const category of parsed.categories) {
+      if (category?.id && category.name) {
+        database
+          .prepare(
+            `INSERT INTO categories (id, name, color)
+             VALUES (@id, @name, @color)
+             ON CONFLICT(id) DO UPDATE SET
+               name = excluded.name,
+               color = excluded.color`,
+          )
+          .run({ ...category, color: category.color ?? null });
       }
     }
+  }
 
-    for (const entry of entries) {
-      if (isImportableEntry(entry)) {
-        saveEntry({
-          ...entry,
-          tags: Array.isArray(entry.tags) ? entry.tags : [],
-          isFavorite: Boolean(entry.isFavorite),
-        });
+  if (Array.isArray(parsed.fieldOptions)) {
+    for (const option of parsed.fieldOptions) {
+      if (option?.fieldKey && option.label && !option.isSystem) {
+        createFieldOption(option.fieldKey, option.label);
       }
     }
+  }
 
-    if (Array.isArray(parsed.settings)) {
-      for (const setting of parsed.settings) {
-        if (setting?.key && typeof setting.value === "string") {
-          saveSetting(setting.key, setting.value);
-        }
-      }
-    }
-
-    if (parsed.license && ["active", "expired", "invalid"].includes(parsed.license.status)) {
-      saveLicenseState({
-        key: parsed.license.key ?? "",
-        status: parsed.license.status,
-        expiresAt: parsed.license.expiresAt ?? null,
+  for (const entry of entries) {
+    if (isImportableEntry(entry)) {
+      saveEntry({
+        ...entry,
+        tags: Array.isArray(entry.tags) ? entry.tags : [],
+        isFavorite: Boolean(entry.isFavorite),
       });
     }
-  });
+  }
 
-  write();
+  if (Array.isArray(parsed.settings)) {
+    for (const setting of parsed.settings) {
+      if (setting?.key && typeof setting.value === "string") {
+        saveSetting(setting.key, setting.value);
+      }
+    }
+  }
+
+  if (parsed.license && ["active", "expired", "invalid"].includes(parsed.license.status)) {
+    saveLicenseState({
+      key: parsed.license.key ?? "",
+      status: parsed.license.status,
+      expiresAt: parsed.license.expiresAt ?? null,
+    });
+  }
 
   return {
     importedEntries: entries.filter(isImportableEntry).length,
@@ -491,6 +630,23 @@ function seedStarterCategories() {
   }
 }
 
+function seedSystemFieldOptions() {
+  for (const option of systemFieldOptions) {
+    const id = `${option.fieldKey}:${slugify(option.value)}`;
+    getDb()
+      .prepare(
+        `INSERT INTO field_options (id, field_key, value, label, is_system, sort_order)
+         VALUES (@id, @fieldKey, @value, @label, 1, @sortOrder)
+         ON CONFLICT(field_key, value) DO UPDATE SET
+           label = excluded.label,
+           is_system = 1,
+           sort_order = excluded.sort_order,
+           updated_at = CURRENT_TIMESTAMP`,
+      )
+      .run({ id, ...option });
+  }
+}
+
 function normalizeTags(tags: string[]) {
   return [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))].slice(0, 12);
 }
@@ -500,6 +656,54 @@ function slugify(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+function getFieldOption(id: string): FieldOption | null {
+  const row = getDb()
+    .prepare(
+      `SELECT
+         id,
+         field_key as fieldKey,
+         value,
+         label,
+         is_system as isSystem,
+         sort_order as sortOrder
+       FROM field_options
+       WHERE id = ?`,
+    )
+    .get(id) as (Omit<FieldOption, "isSystem"> & { isSystem: 0 | 1 }) | undefined;
+
+  return row ? { ...row, isSystem: Boolean(row.isSystem) } : null;
+}
+
+function nextFieldOptionSortOrder(fieldKey: FieldOptionKey) {
+  const row = getDb()
+    .prepare("SELECT COALESCE(MAX(sort_order), 0) + 1 as nextSortOrder FROM field_options WHERE field_key = ?")
+    .get(fieldKey) as { nextSortOrder: number };
+
+  return row.nextSortOrder;
+}
+
+function normalizeCodeLanguage(value?: string) {
+  const normalized = value?.trim();
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  const map: Record<string, string> = {
+    typescript: "typescript",
+    javascript: "javascript",
+    html: "html",
+    css: "css",
+    python: "python",
+    sql: "sql",
+    json: "json",
+    bash: "shell",
+    markdown: "markdown",
+  };
+
+  return map[normalized.toLowerCase()] ?? normalized.toLowerCase();
 }
 
 function createExportSnapshot(createdAt: string) {
@@ -516,6 +720,7 @@ function createExportSnapshot(createdAt: string) {
     },
     entries: listEntries(),
     categories: listCategories(),
+    fieldOptions: listFieldOptions(),
     settings,
     license: getLicenseState(),
   };
@@ -583,6 +788,7 @@ function migrateEntryTypeConstraint() {
         description TEXT,
         content TEXT NOT NULL,
         language TEXT,
+        field_value TEXT,
         category_id TEXT,
         is_favorite INTEGER NOT NULL DEFAULT 0,
         preview_kind TEXT CHECK (preview_kind IN ('html', 'css', 'javascript', 'markdown')),
@@ -592,10 +798,10 @@ function migrateEntryTypeConstraint() {
       );
 
       INSERT INTO entries (
-        id, type, title, description, content, language, category_id, is_favorite, preview_kind, created_at, updated_at
+        id, type, title, description, content, language, field_value, category_id, is_favorite, preview_kind, created_at, updated_at
       )
       SELECT
-        id, type, title, description, content, language, category_id, is_favorite, preview_kind, created_at, updated_at
+        id, type, title, description, content, language, NULL, category_id, is_favorite, preview_kind, created_at, updated_at
       FROM entries_legacy;
 
       CREATE TABLE entry_tags (
@@ -616,4 +822,42 @@ function migrateEntryTypeConstraint() {
   });
 
   migrate();
+}
+
+function migrateEntryFieldValue() {
+  const columns = getDb().prepare("PRAGMA table_info(entries)").all() as Array<{ name: string }>;
+
+  if (!columns.some((column) => column.name === "field_value")) {
+    getDb().prepare("ALTER TABLE entries ADD COLUMN field_value TEXT").run();
+  }
+
+  getDb()
+    .prepare(
+      `UPDATE entries
+       SET field_value = CASE
+         WHEN type = 'code' AND language IS NOT NULL THEN
+           CASE lower(language)
+             WHEN 'typescript' THEN 'TypeScript'
+             WHEN 'javascript' THEN 'JavaScript'
+             WHEN 'html' THEN 'HTML'
+             WHEN 'css' THEN 'CSS'
+             WHEN 'python' THEN 'Python'
+             WHEN 'sql' THEN 'SQL'
+             WHEN 'json' THEN 'JSON'
+             WHEN 'shell' THEN 'Bash'
+             WHEN 'bash' THEN 'Bash'
+             WHEN 'markdown' THEN 'Markdown'
+             ELSE language
+           END
+         WHEN type = 'prompt' THEN 'Allgemein'
+         WHEN type = 'workflow' THEN 'Projekt'
+         WHEN type = 'note' THEN COALESCE(
+           (SELECT categories.name FROM categories WHERE categories.id = entries.category_id),
+           'Allgemein'
+         )
+         ELSE field_value
+       END
+       WHERE field_value IS NULL`,
+    )
+    .run();
 }
