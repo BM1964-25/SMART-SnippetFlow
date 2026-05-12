@@ -1,5 +1,6 @@
 {
   "name": "smart-snippetflow",
+  "productName": "SMART SnippetFlow",
   "version": "0.1.0",
   "description": "Local desktop library for prompts, snippets and lightweight workflows.",
   "main": "dist-electron/main.js",

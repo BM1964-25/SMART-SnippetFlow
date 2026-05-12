@@ -1,9 +1,21 @@
+import fs from "node:fs";
 import path from "node:path";
 import { app } from "electron";
 import Database from "better-sqlite3";
-import type { LibraryCategory, LibraryEntry, LibraryEntryInput, LicenseState } from "../src/types/index.js";
+import type {
+  AppSetting,
+  ExportFormat,
+  ExportPayload,
+  LibraryCategory,
+  LibraryEntry,
+  LibraryEntryInput,
+  LicenseState,
+} from "../src/types/index.js";
 
 let db: Database.Database | null = null;
+
+const DATABASE_FILE_NAME = "snippetflow.db";
+const LEGACY_DATABASE_FILE_NAME = "smart-snippetflow.sqlite";
 
 type EntryRow = Omit<LibraryEntry, "isFavorite" | "tags"> & {
   language: string | null;
@@ -66,7 +78,8 @@ const starterCategories: LibraryCategory[] = [
 
 function getDb() {
   if (!db) {
-    const dbPath = path.join(app.getPath("userData"), "smart-snippetflow.sqlite");
+    const dbPath = getDatabasePath();
+    migrateLegacyDatabase(dbPath);
     db = new Database(dbPath);
     db.pragma("journal_mode = WAL");
   }
@@ -120,6 +133,12 @@ export function initializeDatabase() {
       status TEXT NOT NULL CHECK (status IN ('active', 'expired', 'invalid')),
       expires_at TEXT,
       checked_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
@@ -303,6 +322,56 @@ export function saveLicenseState(license: LicenseState) {
   return license;
 }
 
+export function getSetting(key: string) {
+  const row = getDb().prepare("SELECT value FROM app_settings WHERE key = ?").get(key) as Pick<AppSetting, "value"> | undefined;
+  return row?.value ?? null;
+}
+
+export function saveSetting(key: string, value: string) {
+  getDb()
+    .prepare(
+      `INSERT INTO app_settings (key, value, updated_at)
+       VALUES (?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(key) DO UPDATE SET
+         value = excluded.value,
+         updated_at = CURRENT_TIMESTAMP`,
+    )
+    .run(key, value);
+
+  return { key, value };
+}
+
+export function createExportPayload(format: ExportFormat): ExportPayload {
+  const createdAt = new Date().toISOString();
+  const snapshot = createExportSnapshot(createdAt);
+  const fileBaseName = `smart-snippetflow-export-${createdAt.slice(0, 10)}`;
+
+  if (format === "markdown") {
+    return {
+      format,
+      fileName: `${fileBaseName}.md`,
+      content: createMarkdownExport(snapshot),
+      createdAt,
+    };
+  }
+
+  if (format === "txt") {
+    return {
+      format,
+      fileName: `${fileBaseName}.txt`,
+      content: createTextExport(snapshot),
+      createdAt,
+    };
+  }
+
+  return {
+    format,
+    fileName: `${fileBaseName}.json`,
+    content: JSON.stringify(snapshot, null, 2),
+    createdAt,
+  };
+}
+
 function seedStarterEntries() {
   const count = getDb().prepare("SELECT COUNT(*) as count FROM entries").get() as { count: number };
 
@@ -310,6 +379,18 @@ function seedStarterEntries() {
     for (const entry of starterEntries) {
       saveEntry(entry);
     }
+  }
+}
+
+function getDatabasePath() {
+  return path.join(app.getPath("userData"), DATABASE_FILE_NAME);
+}
+
+function migrateLegacyDatabase(targetPath: string) {
+  const legacyPath = path.join(app.getPath("userData"), LEGACY_DATABASE_FILE_NAME);
+
+  if (!fs.existsSync(targetPath) && fs.existsSync(legacyPath)) {
+    fs.copyFileSync(legacyPath, targetPath);
   }
 }
 
@@ -332,4 +413,50 @@ function slugify(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+function createExportSnapshot(createdAt: string) {
+  const settings = getDb()
+    .prepare("SELECT key, value FROM app_settings ORDER BY key ASC")
+    .all() as AppSetting[];
+
+  return {
+    app: "SMART SnippetFlow",
+    createdAt,
+    database: {
+      storage: "electron-userData",
+      fileName: DATABASE_FILE_NAME,
+    },
+    entries: listEntries(),
+    categories: listCategories(),
+    settings,
+    license: getLicenseState(),
+  };
+}
+
+function createMarkdownExport(snapshot: ReturnType<typeof createExportSnapshot>) {
+  const sections = snapshot.entries.map((entry) => {
+    const tags = entry.tags.length > 0 ? entry.tags.join(", ") : "Keine Tags";
+    return [
+      `## ${entry.title}`,
+      "",
+      `Typ: ${entry.type}`,
+      `Kategorie: ${entry.categoryName ?? "Ohne Kategorie"}`,
+      `Tags: ${tags}`,
+      "",
+      entry.description,
+      "",
+      "```",
+      entry.content,
+      "```",
+    ].join("\n");
+  });
+
+  return [`# SMART SnippetFlow Export`, "", `Erstellt: ${snapshot.createdAt}`, "", ...sections].join("\n");
+}
+
+function createTextExport(snapshot: ReturnType<typeof createExportSnapshot>) {
+  return snapshot.entries
+    .map((entry) => `${entry.title}\n${entry.type}\n${entry.description}\n\n${entry.content}`)
+    .join("\n\n---\n\n");
 }

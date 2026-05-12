@@ -1,5 +1,12 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { LibraryCategory, LibraryEntry, LibraryEntryInput, LicenseState } from "../src/types/index.js";
+import type {
+  ExportFormat,
+  ExportPayload,
+  LibraryCategory,
+  LibraryEntry,
+  LibraryEntryInput,
+  LicenseState,
+} from "../src/types/index.js";
 
 const api = {
   library: {
@@ -16,6 +23,13 @@ const api = {
   license: {
     get: (): Promise<LicenseState> => ipcRenderer.invoke("license:get"),
     save: (license: LicenseState): Promise<LicenseState> => ipcRenderer.invoke("license:save", license),
+  },
+  settings: {
+    get: (key: string): Promise<string | null> => ipcRenderer.invoke("settings:get", key),
+    save: (key: string, value: string): Promise<{ key: string; value: string }> => ipcRenderer.invoke("settings:save", key, value),
+  },
+  export: {
+    create: (format: ExportFormat): Promise<ExportPayload> => ipcRenderer.invoke("export:create", format),
   },
 };
 

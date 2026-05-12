@@ -1,8 +1,10 @@
 import path from "node:path";
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import {
+  createExportPayload,
   duplicateEntry,
   getLicenseState,
+  getSetting,
   initializeDatabase,
   deleteEntry,
   listCategories,
@@ -10,11 +12,14 @@ import {
   saveCategory,
   saveEntry,
   saveLicenseState,
+  saveSetting,
   toggleFavorite,
 } from "./storage.js";
-import type { LibraryEntryInput, LicenseState } from "../src/types/index.js";
+import type { ExportFormat, LibraryEntryInput, LicenseState } from "../src/types/index.js";
 
 const isDev = !app.isPackaged;
+
+app.setName("SMART SnippetFlow");
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -69,5 +74,8 @@ ipcMain.handle("library:favorite", (_event, id: string) => toggleFavorite(id));
 ipcMain.handle("library:delete", (_event, id: string) => deleteEntry(id));
 ipcMain.handle("categories:list", () => listCategories());
 ipcMain.handle("categories:save", (_event, name: string) => saveCategory(name));
+ipcMain.handle("settings:get", (_event, key: string) => getSetting(key));
+ipcMain.handle("settings:save", (_event, key: string, value: string) => saveSetting(key, value));
 ipcMain.handle("license:get", () => getLicenseState());
 ipcMain.handle("license:save", (_event, license: LicenseState) => saveLicenseState(license));
+ipcMain.handle("export:create", (_event, format: ExportFormat) => createExportPayload(format));

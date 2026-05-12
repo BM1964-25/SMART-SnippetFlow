@@ -2,6 +2,7 @@ export type EntryType = "prompt" | "code" | "workflow";
 export type PreviewKind = "html" | "css" | "javascript" | "markdown";
 export type LicenseStatus = "active" | "expired" | "invalid";
 export type AppView = "dashboard" | "prompts" | "code" | "workflows" | "favorites" | "settings";
+export type ExportFormat = "json" | "markdown" | "txt";
 
 export interface LibraryEntry {
   id: string;
@@ -31,6 +32,18 @@ export interface LibraryCategory {
   id: string;
   name: string;
   color?: string;
+}
+
+export interface AppSetting {
+  key: string;
+  value: string;
+}
+
+export interface ExportPayload {
+  format: ExportFormat;
+  fileName: string;
+  content: string;
+  createdAt: string;
 }
 
 export interface PreviewDescriptor {
