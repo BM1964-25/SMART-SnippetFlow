@@ -14,27 +14,31 @@ const filters: Array<{ label: string; value: EntryType | "all" }> = [
   { label: "Prompts", value: "prompt" },
   { label: "Code", value: "code" },
   { label: "Workflows", value: "workflow" },
+  { label: "Notizen", value: "note" },
 ];
 
 const typeLabel: Record<EntryType, string> = {
   prompt: "Prompt",
   code: "Code",
   workflow: "Workflow",
+  note: "Notiz",
 };
 
 const viewTitle: Record<Exclude<AppView, "settings">, string> = {
-  dashboard: "Dashboard",
+  all: "Alle",
   prompts: "Prompts",
   code: "Code",
   workflows: "Workflows",
+  notes: "Notizen",
   favorites: "Favoriten",
 };
 
 const viewDescription: Record<Exclude<AppView, "settings">, string> = {
-  dashboard: "Deine lokale Bibliothek auf einen Blick.",
+  all: "Deine lokale Bibliothek auf einen Blick.",
   prompts: "Wiederverwendbare KI-Anweisungen und Vorlagen.",
   code: "Code-Snippets mit Sprache, Tags und schneller Kopie.",
   workflows: "Schlanke Abläufe fuer wiederkehrende Arbeit.",
+  notes: "Leichte Markdown-Notizen ohne ueberfluessige Struktur.",
   favorites: "Die wichtigsten Eintraege ohne Umwege.",
 };
 
@@ -45,7 +49,16 @@ export function LibraryPage({
   activeView: Exclude<AppView, "settings">;
   onDirtyChange: (isDirty: boolean) => void;
 }) {
-  const defaultType = activeView === "code" ? "code" : activeView === "workflows" ? "workflow" : activeView === "prompts" ? "prompt" : "all";
+  const defaultType =
+    activeView === "code"
+      ? "code"
+      : activeView === "workflows"
+        ? "workflow"
+        : activeView === "prompts"
+          ? "prompt"
+          : activeView === "notes"
+            ? "note"
+            : "all";
   const [query, setQuery] = useState("");
   const [activeType, setActiveType] = useState<EntryType | "all">(defaultType);
   const [sortMode, setSortMode] = useState<"recent" | "title">("recent");
@@ -113,11 +126,11 @@ export function LibraryPage({
       type,
       title: "Neuer Eintrag",
       description: "",
-      content: type === "code" ? "// Neues Snippet" : "",
+      content: type === "code" ? "// Neues Snippet" : type === "note" ? "## Notiz\n\n" : "",
       language: type === "code" ? "typescript" : "markdown",
       tags: [],
       isFavorite: false,
-      previewKind: type === "workflow" ? "markdown" : undefined,
+      previewKind: type === "workflow" || type === "note" ? "markdown" : undefined,
     });
     setSelectedId(created.id);
     setDraft(created);
@@ -288,9 +301,9 @@ export function LibraryPage({
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-8 py-5">
-          {activeView === "dashboard" && (
+          {activeView === "all" && (
             <div className="mb-5 grid gap-4">
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-5 gap-3">
                 {dashboardStats.map((stat) => (
                   <div key={stat.label} className="rounded-lg border border-border bg-card p-4 shadow-sm">
                     <p className="text-xs text-muted-foreground">{stat.label}</p>
@@ -360,6 +373,7 @@ export function LibraryPage({
                     <option value="prompt">Prompt</option>
                     <option value="code">Code</option>
                     <option value="workflow">Workflow</option>
+                    <option value="note">Notiz</option>
                   </select>
                   <Input
                     value={draft.language ?? ""}
@@ -594,6 +608,7 @@ function createDashboardStats(entries: LibraryEntry[]) {
     { label: "Prompts", value: entries.filter((entry) => entry.type === "prompt").length },
     { label: "Code", value: entries.filter((entry) => entry.type === "code").length },
     { label: "Workflows", value: entries.filter((entry) => entry.type === "workflow").length },
+    { label: "Notizen", value: entries.filter((entry) => entry.type === "note").length },
     { label: "Favoriten", value: entries.filter((entry) => entry.isFavorite).length },
   ];
 }

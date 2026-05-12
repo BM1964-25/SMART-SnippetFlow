@@ -31,4 +31,16 @@ export const demoEntries: LibraryEntry[] = [
     isFavorite: false,
     previewKind: "markdown",
   },
+  {
+    id: "note-architecture",
+    type: "note",
+    title: "Architektur-Notiz",
+    description: "Kurze Markdown-Notiz fuer technische Entscheidungen.",
+    content: "## Entscheidung\n\nSQLite bleibt lokal im Electron userData-Pfad.\n\n## Begruendung\n\nUpdates sollen Nutzerdaten nicht ueberschreiben.",
+    tags: ["Architektur", "Lokal"],
+    categoryId: "architektur",
+    categoryName: "Architektur",
+    isFavorite: false,
+    previewKind: "markdown",
+  },
 ];

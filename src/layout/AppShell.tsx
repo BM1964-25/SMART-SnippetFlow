@@ -1,16 +1,17 @@
 import type { ReactNode } from "react";
-import { Blocks, Code2, Gauge, Heart, Library, Settings, Workflow } from "lucide-react";
+import { Blocks, Code2, Heart, Library, NotebookText, Settings, Workflow } from "lucide-react";
 import type { AppView, LicenseStatus } from "@/types";
 import { cn } from "@/utils/cn";
 
 const navItems = [
-  { id: "dashboard", label: "Dashboard", icon: Gauge },
+  { id: "all", label: "Alle", icon: Library },
   { id: "prompts", label: "Prompts", icon: Library },
   { id: "code", label: "Code", icon: Code2 },
   { id: "workflows", label: "Workflows", icon: Workflow },
+  { id: "notes", label: "Notizen", icon: NotebookText },
   { id: "favorites", label: "Favoriten", icon: Heart },
   { id: "settings", label: "Einstellungen", icon: Settings },
-] satisfies Array<{ id: AppView; label: string; icon: typeof Gauge }>;
+] satisfies Array<{ id: AppView; label: string; icon: typeof Library }>;
 
 const licenseLabel: Record<LicenseStatus, string> = {
   active: "Aktiv",

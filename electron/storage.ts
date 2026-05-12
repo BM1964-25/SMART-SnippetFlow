@@ -39,8 +39,8 @@ const starterEntries: LibraryEntry[] = [
     content:
       "Analysiere die folgende Produktidee und verdichte sie in Zielgruppe, Kernnutzen, Risiken und naechste Schritte.",
     tags: ["Product", "Research"],
-    categoryId: "strategy",
-    categoryName: "Strategie",
+    categoryId: "ideen",
+    categoryName: "Ideen",
     isFavorite: true,
   },
   {
@@ -51,8 +51,8 @@ const starterEntries: LibraryEntry[] = [
     content: "export async function copyText(value: string) {\n  await navigator.clipboard.writeText(value);\n}",
     language: "typescript",
     tags: ["TypeScript", "Utility"],
-    categoryId: "development",
-    categoryName: "Entwicklung",
+    categoryId: "technik",
+    categoryName: "Technik",
     isFavorite: false,
     previewKind: "javascript",
   },
@@ -63,17 +63,35 @@ const starterEntries: LibraryEntry[] = [
     description: "Kurzer Ablauf zum Pruefen, Kuerzen und Wiederverwenden eines Snippets.",
     content: "1. Kontext pruefen\n2. Duplikate entfernen\n3. Tags ergaenzen\n4. Nutzbarkeit testen",
     tags: ["Workflow"],
-    categoryId: "operations",
-    categoryName: "Operations",
+    categoryId: "dokumentation",
+    categoryName: "Dokumentation",
+    isFavorite: false,
+    previewKind: "markdown",
+  },
+  {
+    id: "note-architecture",
+    type: "note",
+    title: "Architektur-Notiz",
+    description: "Kurze Markdown-Notiz fuer technische Entscheidungen.",
+    content:
+      "## Entscheidung\n\nSQLite bleibt lokal im Electron userData-Pfad.\n\n## Begruendung\n\nUpdates sollen Nutzerdaten nicht ueberschreiben.",
+    tags: ["Architektur", "Lokal"],
+    categoryId: "architektur",
+    categoryName: "Architektur",
     isFavorite: false,
     previewKind: "markdown",
   },
 ];
 
 const starterCategories: LibraryCategory[] = [
-  { id: "strategy", name: "Strategie", color: "#2563eb" },
-  { id: "development", name: "Entwicklung", color: "#059669" },
-  { id: "operations", name: "Operations", color: "#7c3aed" },
+  { id: "ideen", name: "Ideen", color: "#2563eb" },
+  { id: "technik", name: "Technik", color: "#059669" },
+  { id: "api", name: "API", color: "#0891b2" },
+  { id: "architektur", name: "Architektur", color: "#7c3aed" },
+  { id: "fehler", name: "Fehler", color: "#dc2626" },
+  { id: "meetings", name: "Meetings", color: "#ca8a04" },
+  { id: "dokumentation", name: "Dokumentation", color: "#475569" },
+  { id: "allgemein", name: "Allgemein", color: "#64748b" },
 ];
 
 function getDb() {
@@ -106,7 +124,7 @@ export function initializeDatabase() {
 
     CREATE TABLE IF NOT EXISTS entries (
       id TEXT PRIMARY KEY,
-      type TEXT NOT NULL CHECK (type IN ('prompt', 'code', 'workflow')),
+      type TEXT NOT NULL CHECK (type IN ('prompt', 'code', 'workflow', 'note')),
       title TEXT NOT NULL,
       description TEXT,
       content TEXT NOT NULL,
@@ -142,6 +160,7 @@ export function initializeDatabase() {
     );
   `);
 
+  migrateEntryTypeConstraint();
   seedStarterCategories();
   seedStarterEntries();
 }
@@ -395,12 +414,14 @@ function migrateLegacyDatabase(targetPath: string) {
 }
 
 function seedStarterCategories() {
-  const count = getDb().prepare("SELECT COUNT(*) as count FROM categories").get() as { count: number };
-
-  if (count.count === 0) {
-    for (const category of starterCategories) {
-      getDb().prepare("INSERT INTO categories (id, name, color) VALUES (@id, @name, @color)").run(category);
-    }
+  for (const category of starterCategories) {
+    getDb()
+      .prepare(
+        `INSERT INTO categories (id, name, color)
+         VALUES (@id, @name, @color)
+         ON CONFLICT(id) DO NOTHING`,
+      )
+      .run(category);
   }
 }
 
@@ -459,4 +480,61 @@ function createTextExport(snapshot: ReturnType<typeof createExportSnapshot>) {
   return snapshot.entries
     .map((entry) => `${entry.title}\n${entry.type}\n${entry.description}\n\n${entry.content}`)
     .join("\n\n---\n\n");
+}
+
+function migrateEntryTypeConstraint() {
+  const table = getDb()
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'entries'")
+    .get() as { sql: string } | undefined;
+
+  if (!table || table.sql.includes("'note'")) {
+    return;
+  }
+
+  const database = getDb();
+  const migrate = database.transaction(() => {
+    database.exec(`
+      ALTER TABLE entry_tags RENAME TO entry_tags_legacy;
+      ALTER TABLE entries RENAME TO entries_legacy;
+
+      CREATE TABLE entries (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL CHECK (type IN ('prompt', 'code', 'workflow', 'note')),
+        title TEXT NOT NULL,
+        description TEXT,
+        content TEXT NOT NULL,
+        language TEXT,
+        category_id TEXT,
+        is_favorite INTEGER NOT NULL DEFAULT 0,
+        preview_kind TEXT CHECK (preview_kind IN ('html', 'css', 'javascript', 'markdown')),
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (category_id) REFERENCES categories(id)
+      );
+
+      INSERT INTO entries (
+        id, type, title, description, content, language, category_id, is_favorite, preview_kind, created_at, updated_at
+      )
+      SELECT
+        id, type, title, description, content, language, category_id, is_favorite, preview_kind, created_at, updated_at
+      FROM entries_legacy;
+
+      CREATE TABLE entry_tags (
+        entry_id TEXT NOT NULL,
+        tag_id TEXT NOT NULL,
+        PRIMARY KEY (entry_id, tag_id),
+        FOREIGN KEY (entry_id) REFERENCES entries(id) ON DELETE CASCADE,
+        FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+      );
+
+      INSERT INTO entry_tags (entry_id, tag_id)
+      SELECT entry_id, tag_id
+      FROM entry_tags_legacy;
+
+      DROP TABLE entries_legacy;
+      DROP TABLE entry_tags_legacy;
+    `);
+  });
+
+  migrate();
 }

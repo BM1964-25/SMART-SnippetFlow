@@ -1,7 +1,7 @@
-export type EntryType = "prompt" | "code" | "workflow";
+export type EntryType = "prompt" | "code" | "workflow" | "note";
 export type PreviewKind = "html" | "css" | "javascript" | "markdown";
 export type LicenseStatus = "active" | "expired" | "invalid";
-export type AppView = "dashboard" | "prompts" | "code" | "workflows" | "favorites" | "settings";
+export type AppView = "all" | "prompts" | "code" | "workflows" | "notes" | "favorites" | "settings";
 export type ExportFormat = "json" | "markdown" | "txt";
 
 export interface LibraryEntry {

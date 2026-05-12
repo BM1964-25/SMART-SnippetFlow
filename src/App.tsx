@@ -5,7 +5,7 @@ import { SettingsPage } from "@/pages/SettingsPage";
 import type { AppView, LicenseState } from "@/types";
 
 export default function App() {
-  const [activeView, setActiveView] = useState<AppView>("dashboard");
+  const [activeView, setActiveView] = useState<AppView>("all");
   const [license, setLicense] = useState<LicenseState>({ key: "", status: "invalid", expiresAt: null });
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [pendingView, setPendingView] = useState<AppView | null>(null);
