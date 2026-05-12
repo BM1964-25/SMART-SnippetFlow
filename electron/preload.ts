@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type {
-  ExportFormat,
-  ExportPayload,
+  JsonExportResult,
+  JsonImportResult,
   LibraryCategory,
   LibraryEntry,
   LibraryEntryInput,
@@ -28,8 +28,9 @@ const api = {
     get: (key: string): Promise<string | null> => ipcRenderer.invoke("settings:get", key),
     save: (key: string, value: string): Promise<{ key: string; value: string }> => ipcRenderer.invoke("settings:save", key, value),
   },
-  export: {
-    create: (format: ExportFormat): Promise<ExportPayload> => ipcRenderer.invoke("export:create", format),
+  data: {
+    exportJson: (): Promise<JsonExportResult> => ipcRenderer.invoke("export:json"),
+    importJson: (): Promise<JsonImportResult> => ipcRenderer.invoke("import:json"),
   },
 };
 

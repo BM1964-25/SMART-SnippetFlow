@@ -1,10 +1,12 @@
 import path from "node:path";
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import fs from "node:fs/promises";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import {
   createExportPayload,
   duplicateEntry,
   getLicenseState,
   getSetting,
+  importJsonPayload,
   initializeDatabase,
   deleteEntry,
   listCategories,
@@ -15,7 +17,7 @@ import {
   saveSetting,
   toggleFavorite,
 } from "./storage.js";
-import type { ExportFormat, LibraryEntryInput, LicenseState } from "../src/types/index.js";
+import type { LibraryEntryInput, LicenseState } from "../src/types/index.js";
 
 const isDev = !app.isPackaged;
 
@@ -78,4 +80,33 @@ ipcMain.handle("settings:get", (_event, key: string) => getSetting(key));
 ipcMain.handle("settings:save", (_event, key: string, value: string) => saveSetting(key, value));
 ipcMain.handle("license:get", () => getLicenseState());
 ipcMain.handle("license:save", (_event, license: LicenseState) => saveLicenseState(license));
-ipcMain.handle("export:create", (_event, format: ExportFormat) => createExportPayload(format));
+ipcMain.handle("export:json", async () => {
+  const payload = createExportPayload("json");
+  const result = await dialog.showSaveDialog({
+    title: "SMART SnippetFlow JSON exportieren",
+    defaultPath: path.join(app.getPath("downloads"), payload.fileName),
+    filters: [{ name: "JSON", extensions: ["json"] }],
+  });
+
+  if (result.canceled || !result.filePath) {
+    return { canceled: true as const };
+  }
+
+  await fs.writeFile(result.filePath, payload.content, "utf-8");
+  return { canceled: false as const, filePath: result.filePath };
+});
+ipcMain.handle("import:json", async () => {
+  const result = await dialog.showOpenDialog({
+    title: "SMART SnippetFlow JSON importieren",
+    properties: ["openFile"],
+    filters: [{ name: "JSON", extensions: ["json"] }],
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return { canceled: true as const };
+  }
+
+  const content = await fs.readFile(result.filePaths[0], "utf-8");
+  const summary = importJsonPayload(content);
+  return { canceled: false as const, filePath: result.filePaths[0], ...summary };
+});

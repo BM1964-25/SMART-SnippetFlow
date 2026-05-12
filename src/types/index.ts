@@ -46,6 +46,22 @@ export interface ExportPayload {
   createdAt: string;
 }
 
+export type JsonExportResult =
+  | { canceled: true }
+  | {
+      canceled: false;
+      filePath: string;
+    };
+
+export type JsonImportResult =
+  | { canceled: true }
+  | {
+      canceled: false;
+      filePath: string;
+      importedEntries: number;
+      importedCategories: number;
+    };
+
 export interface PreviewDescriptor {
   kind: PreviewKind;
   source: string;

@@ -391,6 +391,72 @@ export function createExportPayload(format: ExportFormat): ExportPayload {
   };
 }
 
+export function importJsonPayload(content: string) {
+  const parsed = JSON.parse(content) as Partial<{
+    entries: LibraryEntryInput[];
+    categories: LibraryCategory[];
+    settings: AppSetting[];
+    license: LicenseState;
+  }>;
+
+  if (!Array.isArray(parsed.entries)) {
+    throw new Error("Die JSON-Datei enthaelt keine gueltigen Eintraege.");
+  }
+
+  const entries = parsed.entries;
+  const database = getDb();
+  const write = database.transaction(() => {
+    if (Array.isArray(parsed.categories)) {
+      for (const category of parsed.categories) {
+        if (category?.id && category.name) {
+          database
+            .prepare(
+              `INSERT INTO categories (id, name, color)
+               VALUES (@id, @name, @color)
+               ON CONFLICT(id) DO UPDATE SET
+                 name = excluded.name,
+                 color = excluded.color`,
+            )
+            .run({ ...category, color: category.color ?? null });
+        }
+      }
+    }
+
+    for (const entry of entries) {
+      if (isImportableEntry(entry)) {
+        saveEntry({
+          ...entry,
+          tags: Array.isArray(entry.tags) ? entry.tags : [],
+          isFavorite: Boolean(entry.isFavorite),
+        });
+      }
+    }
+
+    if (Array.isArray(parsed.settings)) {
+      for (const setting of parsed.settings) {
+        if (setting?.key && typeof setting.value === "string") {
+          saveSetting(setting.key, setting.value);
+        }
+      }
+    }
+
+    if (parsed.license && ["active", "expired", "invalid"].includes(parsed.license.status)) {
+      saveLicenseState({
+        key: parsed.license.key ?? "",
+        status: parsed.license.status,
+        expiresAt: parsed.license.expiresAt ?? null,
+      });
+    }
+  });
+
+  write();
+
+  return {
+    importedEntries: entries.filter(isImportableEntry).length,
+    importedCategories: Array.isArray(parsed.categories) ? parsed.categories.length : 0,
+  };
+}
+
 function seedStarterEntries() {
   const count = getDb().prepare("SELECT COUNT(*) as count FROM entries").get() as { count: number };
 
@@ -480,6 +546,19 @@ function createTextExport(snapshot: ReturnType<typeof createExportSnapshot>) {
   return snapshot.entries
     .map((entry) => `${entry.title}\n${entry.type}\n${entry.description}\n\n${entry.content}`)
     .join("\n\n---\n\n");
+}
+
+function isImportableEntry(entry: unknown): entry is LibraryEntryInput {
+  if (!entry || typeof entry !== "object") {
+    return false;
+  }
+
+  const candidate = entry as LibraryEntryInput;
+  return (
+    ["prompt", "code", "workflow", "note"].includes(candidate.type) &&
+    typeof candidate.title === "string" &&
+    typeof candidate.content === "string"
+  );
 }
 
 function migrateEntryTypeConstraint() {

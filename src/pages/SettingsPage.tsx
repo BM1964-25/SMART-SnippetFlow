@@ -18,6 +18,7 @@ export function SettingsPage({
   onLicenseChange: (license: LicenseState) => void;
 }) {
   const [draft, setDraft] = useState(license);
+  const [dataNotice, setDataNotice] = useState<string | null>(null);
 
   async function handleSave() {
     const nextLicense: LicenseState = {
@@ -28,6 +29,28 @@ export function SettingsPage({
     const saved = (await window.snippetFlow?.license.save(nextLicense)) ?? nextLicense;
     onLicenseChange(saved);
     setDraft(saved);
+  }
+
+  async function handleExportJson() {
+    const result = await window.snippetFlow?.data.exportJson();
+
+    if (!result || result.canceled) {
+      setDataNotice("Export abgebrochen");
+      return;
+    }
+
+    setDataNotice(`JSON exportiert: ${result.filePath}`);
+  }
+
+  async function handleImportJson() {
+    const result = await window.snippetFlow?.data.importJson();
+
+    if (!result || result.canceled) {
+      setDataNotice("Import abgebrochen");
+      return;
+    }
+
+    setDataNotice(`${result.importedEntries} Eintraege und ${result.importedCategories} Kategorien importiert`);
   }
 
   return (
@@ -75,6 +98,22 @@ export function SettingsPage({
           <div className="mt-6 flex justify-end">
             <Button onClick={handleSave}>Lizenz speichern</Button>
           </div>
+        </section>
+
+        <section className="mt-6 rounded-lg border border-border bg-card p-6 shadow-sm">
+          <div>
+            <h2 className="text-base font-semibold">Daten sichern</h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              SQLite bleibt die interne Datenbank. JSON dient nur als manuelles Backup oder fuer einen spaeteren Umzug.
+            </p>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button onClick={handleExportJson}>JSON exportieren</Button>
+            <Button onClick={handleImportJson} variant="outline">JSON importieren</Button>
+          </div>
+
+          {dataNotice && <p className="mt-4 text-sm text-muted-foreground">{dataNotice}</p>}
         </section>
       </div>
     </div>
