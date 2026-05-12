@@ -37,10 +37,10 @@ const starterEntries: LibraryEntry[] = [
   {
     id: "prompt-product-brief",
     type: "prompt",
-    title: "Produkt-Briefing schaerfen",
+    title: "Produkt-Briefing schärfen",
     description: "Strukturiert lose Produktideen in Zielgruppe, Nutzen und Umfang.",
     content:
-      "Analysiere die folgende Produktidee und verdichte sie in Zielgruppe, Kernnutzen, Risiken und naechste Schritte.",
+      "Analysiere die folgende Produktidee und verdichte sie in Zielgruppe, Kernnutzen, Risiken und nächste Schritte.",
     tags: ["Product", "Research"],
     fieldValue: "Allgemein",
     categoryId: "ideen",
@@ -65,8 +65,8 @@ const starterEntries: LibraryEntry[] = [
     id: "workflow-review",
     type: "workflow",
     title: "Snippet Review Workflow",
-    description: "Kurzer Ablauf zum Pruefen, Kuerzen und Wiederverwenden eines Snippets.",
-    content: "1. Kontext pruefen\n2. Duplikate entfernen\n3. Tags ergaenzen\n4. Nutzbarkeit testen",
+    description: "Kurzer Ablauf zum Prüfen, Kürzen und Wiederverwenden eines Snippets.",
+    content: "1. Kontext prüfen\n2. Duplikate entfernen\n3. Tags ergänzen\n4. Nutzbarkeit testen",
     tags: ["Workflow"],
     fieldValue: "Projekt",
     categoryId: "dokumentation",
@@ -78,9 +78,9 @@ const starterEntries: LibraryEntry[] = [
     id: "note-architecture",
     type: "note",
     title: "Architektur-Notiz",
-    description: "Kurze Markdown-Notiz fuer technische Entscheidungen.",
+    description: "Kurze Markdown-Notiz für technische Entscheidungen.",
     content:
-      "## Entscheidung\n\nSQLite bleibt lokal im Electron userData-Pfad.\n\n## Begruendung\n\nUpdates sollen Nutzerdaten nicht ueberschreiben.",
+      "## Entscheidung\n\nSQLite bleibt lokal im Electron userData-Pfad.\n\n## Begründung\n\nUpdates sollen Nutzerdaten nicht überschreiben.",
     tags: ["Architektur", "Lokal"],
     fieldValue: "Architektur",
     categoryId: "architektur",
@@ -535,7 +535,7 @@ export function importJsonPayload(content: string) {
   }>;
 
   if (!Array.isArray(parsed.entries)) {
-    throw new Error("Die JSON-Datei enthaelt keine gueltigen Eintraege.");
+    throw new Error("Die JSON-Datei enthält keine gültigen Einträge.");
   }
 
   const entries = parsed.entries;

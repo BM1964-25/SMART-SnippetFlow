@@ -45,9 +45,9 @@ export default function App() {
       {pendingView && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/20 px-4">
           <div className="w-full max-w-md rounded-lg border border-border bg-card p-5 shadow-soft">
-            <h2 className="text-base font-semibold">Ungespeicherte Aenderungen</h2>
+            <h2 className="text-base font-semibold">Ungespeicherte Änderungen</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Beim Wechsel der Ansicht gehen aktuelle Aenderungen im Editor verloren.
+              Beim Wechsel der Ansicht gehen aktuelle Änderungen im Editor verloren.
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button

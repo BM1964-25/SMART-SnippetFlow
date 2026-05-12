@@ -37,9 +37,9 @@ const viewDescription: Record<Exclude<AppView, "settings">, string> = {
   all: "Deine lokale Bibliothek auf einen Blick.",
   prompts: "Wiederverwendbare KI-Anweisungen und Vorlagen.",
   code: "Code-Snippets mit Sprache, Tags und schneller Kopie.",
-  workflows: "Schlanke Abläufe fuer wiederkehrende Arbeit.",
-  notes: "Leichte Markdown-Notizen ohne ueberfluessige Struktur.",
-  favorites: "Die wichtigsten Eintraege ohne Umwege.",
+  workflows: "Schlanke Abläufe für wiederkehrende Arbeit.",
+  notes: "Leichte Markdown-Notizen ohne überflüssige Struktur.",
+  favorites: "Die wichtigsten Einträge ohne Umwege.",
 };
 
 export function LibraryPage({
@@ -159,7 +159,7 @@ export function LibraryPage({
   function handleDiscard() {
     if (selectedEntry) {
       setDraft(selectedEntry);
-      showNotice("Aenderungen verworfen");
+      showNotice("Änderungen verworfen");
     }
   }
 
@@ -213,7 +213,7 @@ export function LibraryPage({
     setSelectedId(nextEntry?.id ?? null);
     setDraft(nextEntry);
     setDeleteCandidate(null);
-    showNotice("Eintrag geloescht");
+    showNotice("Eintrag gelöscht");
   }
 
   async function handleAddCategory() {
@@ -234,7 +234,7 @@ export function LibraryPage({
     }
 
     if (value === "__new__") {
-      const label = window.prompt(`${activeFieldLabel}: neuen Wert hinzufuegen`);
+      const label = window.prompt(`${activeFieldLabel}: neuen Wert hinzufügen`);
       if (!label?.trim()) {
         return;
       }
@@ -245,7 +245,7 @@ export function LibraryPage({
         fieldValue: option.label,
         language: draft.type === "code" ? option.value.toLowerCase() : draft.language,
       });
-      showNotice("Auswahlwert hinzugefuegt");
+      showNotice("Auswahlwert hinzugefügt");
       return;
     }
 
@@ -359,7 +359,7 @@ export function LibraryPage({
           {isLoading && <p className="text-sm text-muted-foreground">Lade lokale Bibliothek...</p>}
           {!isLoading && visibleEntries.length === 0 && (
             <div className="rounded-lg border border-dashed border-border bg-card p-6 text-sm text-muted-foreground">
-              Keine Eintraege gefunden.
+              Keine Einträge gefunden.
             </div>
           )}
           <div className="grid gap-3">
@@ -428,7 +428,7 @@ export function LibraryPage({
                           {option.label}
                         </option>
                       ))}
-                      <option value="__new__">Neuen Wert hinzufuegen...</option>
+                      <option value="__new__">Neuen Wert hinzufügen...</option>
                     </select>
                   </label>
                   <select
@@ -472,7 +472,7 @@ export function LibraryPage({
                 <Button onClick={handleSave} variant="outline" size="icon" title="Speichern">
                   <Save className="h-4 w-4" />
                 </Button>
-                <Button onClick={handleDiscard} variant="outline" size="icon" title="Aenderungen verwerfen" disabled={!isDirty}>
+                <Button onClick={handleDiscard} variant="outline" size="icon" title="Änderungen verwerfen" disabled={!isDirty}>
                   <RotateCcw className="h-4 w-4" />
                 </Button>
                 <Button onClick={handleCopy} variant="outline" size="icon" title="Kopieren">
@@ -484,7 +484,7 @@ export function LibraryPage({
                 <Button onClick={handleFavorite} variant="outline" size="icon" title="Favorit">
                   <Heart className={cn("h-4 w-4", draft.isFavorite && "fill-rose-500 text-rose-500")} />
                 </Button>
-                <Button onClick={handleDelete} variant="outline" size="icon" title="Loeschen">
+                <Button onClick={handleDelete} variant="outline" size="icon" title="Löschen">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -499,7 +499,7 @@ export function LibraryPage({
                 placeholder="Tags mit Komma trennen"
               />
               <Input value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="Neue Kategorie" />
-              <Button onClick={handleAddCategory} variant="outline">Hinzufuegen</Button>
+              <Button onClick={handleAddCategory} variant="outline">Hinzufügen</Button>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -529,8 +529,8 @@ export function LibraryPage({
       )}
       {pendingSelectionId && (
         <ConfirmDialog
-          title="Ungespeicherte Aenderungen"
-          description="Wenn du fortfaehrst, werden die aktuellen Aenderungen im Editor verworfen."
+          title="Ungespeicherte Änderungen"
+          description="Wenn du fortfährst, werden die aktuellen Änderungen im Editor verworfen."
           confirmLabel="Verwerfen"
           onCancel={() => setPendingSelectionId(null)}
           onConfirm={confirmPendingSelection}
@@ -538,9 +538,9 @@ export function LibraryPage({
       )}
       {deleteCandidate && (
         <ConfirmDialog
-          title="Eintrag loeschen"
+          title="Eintrag löschen"
           description={`"${deleteCandidate.title}" wird dauerhaft aus der lokalen Bibliothek entfernt.`}
-          confirmLabel="Loeschen"
+          confirmLabel="Löschen"
           danger
           onCancel={() => setDeleteCandidate(null)}
           onConfirm={confirmDelete}
@@ -620,7 +620,7 @@ function DashboardList({
     <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
       <p className="text-sm font-medium">{title}</p>
       <div className="mt-3 grid gap-2">
-        {entries.length === 0 && <p className="text-sm text-muted-foreground">Noch keine Eintraege.</p>}
+        {entries.length === 0 && <p className="text-sm text-muted-foreground">Noch keine Einträge.</p>}
         {entries.map((entry) => (
           <button
             key={entry.id}

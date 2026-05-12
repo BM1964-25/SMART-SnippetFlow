@@ -7,14 +7,14 @@ import type { FieldOption, FieldOptionKey, LicenseState, LicenseStatus } from "@
 const statusLabel: Record<LicenseStatus, string> = {
   active: "Aktiv",
   expired: "Abgelaufen",
-  invalid: "Ungueltig",
+  invalid: "Ungültig",
 };
 
 const optionSections: Array<{ fieldKey: FieldOptionKey; title: string; description: string }> = [
-  { fieldKey: "aiSystem", title: "KI-Systeme", description: "Auswahlwerte fuer Prompt-Eintraege." },
-  { fieldKey: "language", title: "Sprachen", description: "Auswahlwerte fuer Code-Snippets." },
-  { fieldKey: "workflowArea", title: "Workflow-Bereiche", description: "Auswahlwerte fuer Workflows." },
-  { fieldKey: "noteCategory", title: "Notiz-Kategorien", description: "Auswahlwerte fuer Notizen." },
+  { fieldKey: "aiSystem", title: "KI-Systeme", description: "Auswahlwerte für Prompt-Einträge." },
+  { fieldKey: "language", title: "Sprachen", description: "Auswahlwerte für Code-Snippets." },
+  { fieldKey: "workflowArea", title: "Workflow-Bereiche", description: "Auswahlwerte für Workflows." },
+  { fieldKey: "noteCategory", title: "Notiz-Kategorien", description: "Auswahlwerte für Notizen." },
 ];
 
 export function SettingsPage({
@@ -70,11 +70,11 @@ export function SettingsPage({
       return;
     }
 
-    setDataNotice(`${result.importedEntries} Eintraege und ${result.importedCategories} Kategorien importiert`);
+    setDataNotice(`${result.importedEntries} Einträge und ${result.importedCategories} Kategorien importiert`);
   }
 
   async function handleAddOption(fieldKey: FieldOptionKey) {
-    const label = window.prompt("Neuen Auswahlwert hinzufuegen");
+    const label = window.prompt("Neuen Auswahlwert hinzufügen");
     if (!label?.trim()) {
       return;
     }
@@ -106,7 +106,7 @@ export function SettingsPage({
       return;
     }
 
-    const confirmed = window.confirm(`"${option.label}" aus der Auswahl entfernen? Bestehende Eintraege bleiben unveraendert.`);
+    const confirmed = window.confirm(`"${option.label}" aus der Auswahl entfernen? Bestehende Einträge bleiben unverändert.`);
     if (!confirmed) {
       return;
     }
@@ -122,21 +122,21 @@ export function SettingsPage({
       <div className="max-w-3xl">
         <h1 className="text-2xl font-semibold tracking-normal">Einstellungen</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Lokale App-Einstellungen und vorbereitete Lizenzaktivierung fuer Lemon Squeezy.
+          Lokale App-Einstellungen und vorbereitete Lizenzaktivierung für Lemon Squeezy.
         </p>
 
         <section className="mt-8 rounded-lg border border-border bg-card p-6 shadow-sm">
           <div className="flex items-center justify-between gap-4">
             <div>
               <h2 className="text-base font-semibold">Lizenz</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Version 1 speichert den Status lokal. Die API-Pruefung folgt spaeter.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Version 1 speichert den Status lokal. Die API-Prüfung folgt später.</p>
             </div>
             <Badge>{statusLabel[draft.status]}</Badge>
           </div>
 
           <div className="mt-6 grid gap-4">
             <label className="grid gap-2 text-sm font-medium">
-              Lizenzschluessel
+              Lizenzschlüssel
               <Input value={draft.key} onChange={(event) => setDraft({ ...draft, key: event.target.value })} placeholder="SMART-XXXX-XXXX" />
             </label>
 
@@ -149,7 +149,7 @@ export function SettingsPage({
               >
                 <option value="active">Aktiv</option>
                 <option value="expired">Abgelaufen</option>
-                <option value="invalid">Ungueltig</option>
+                <option value="invalid">Ungültig</option>
               </select>
             </label>
 
@@ -168,7 +168,7 @@ export function SettingsPage({
           <div>
             <h2 className="text-base font-semibold">Daten sichern</h2>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              SQLite bleibt die interne Datenbank. JSON dient nur als manuelles Backup oder fuer einen spaeteren Umzug.
+              SQLite bleibt die interne Datenbank. JSON dient nur als manuelles Backup oder für einen späteren Umzug.
             </p>
           </div>
 
@@ -184,7 +184,7 @@ export function SettingsPage({
           <div>
             <h2 className="text-base font-semibold">Auswahlwerte</h2>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              Systemwerte sind geschuetzt. Eigene Werte kannst du ergaenzen, umbenennen oder aus der Auswahl entfernen.
+              Systemwerte sind geschützt. Eigene Werte kannst du ergänzen, umbenennen oder aus der Auswahl entfernen.
             </p>
           </div>
 
@@ -197,7 +197,7 @@ export function SettingsPage({
                     <p className="mt-1 text-sm text-muted-foreground">{section.description}</p>
                   </div>
                   <Button variant="outline" onClick={() => void handleAddOption(section.fieldKey)}>
-                    Wert hinzufuegen
+                    Wert hinzufügen
                   </Button>
                 </div>
 
@@ -212,7 +212,7 @@ export function SettingsPage({
                             Umbenennen
                           </button>
                           <button onClick={() => void handleDeleteOption(option)} className="text-xs text-rose-600 hover:text-rose-700">
-                            Loeschen
+                            Löschen
                           </button>
                         </>
                       )}
