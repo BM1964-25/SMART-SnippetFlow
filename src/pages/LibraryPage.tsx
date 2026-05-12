@@ -462,25 +462,7 @@ export function LibraryPage({
               {draft.categoryName && <Badge>{draft.categoryName}</Badge>}
             </div>
 
-            <div className="min-h-0 overflow-hidden rounded-lg border border-border bg-background">
-              <Editor
-                height="100%"
-                value={draft.content}
-                language={draft.language || (draft.previewKind === "markdown" ? "markdown" : "typescript")}
-                theme="vs-light"
-                onChange={(value) => setDraft({ ...draft, content: value ?? "" })}
-                options={{
-                  minimap: { enabled: false },
-                  fontSize: 13,
-                  fontFamily: "JetBrains Mono, SFMono-Regular, Menlo, monospace",
-                  lineNumbers: "on",
-                  scrollBeyondLastLine: false,
-                  wordWrap: "on",
-                  padding: { top: 18, bottom: 18 },
-                  smoothScrolling: true,
-                }}
-              />
-            </div>
+            <EntryContentEditor entry={draft} onChange={(content) => setDraft({ ...draft, content })} />
 
             <div className="grid grid-cols-[220px_minmax(0,1fr)] overflow-hidden rounded-lg border border-border bg-background">
               <div className="border-r border-border p-4">
@@ -517,6 +499,63 @@ export function LibraryPage({
           onConfirm={confirmDelete}
         />
       )}
+    </div>
+  );
+}
+
+function EntryContentEditor({ entry, onChange }: { entry: LibraryEntry; onChange: (content: string) => void }) {
+  if (entry.type === "code") {
+    return (
+      <div className="min-h-0 overflow-hidden rounded-lg border border-border bg-background">
+        <Editor
+          height="100%"
+          value={entry.content}
+          language={entry.language || "typescript"}
+          theme="vs-light"
+          onChange={(value) => onChange(value ?? "")}
+          options={{
+            minimap: { enabled: false },
+            fontSize: 13,
+            fontFamily: "JetBrains Mono, SFMono-Regular, Menlo, monospace",
+            lineNumbers: "on",
+            scrollBeyondLastLine: false,
+            wordWrap: "on",
+            padding: { top: 18, bottom: 18 },
+            smoothScrolling: true,
+          }}
+        />
+      </div>
+    );
+  }
+
+  const editorCopy: Record<Exclude<EntryType, "code">, { placeholder: string; className: string }> = {
+    prompt: {
+      placeholder: "Schreibe hier deinen Prompt...",
+      className: "text-[15px] leading-7",
+    },
+    workflow: {
+      placeholder: "Beschreibe die Schritte dieses Workflows...",
+      className: "text-[15px] leading-7",
+    },
+    note: {
+      placeholder: "Schreibe deine Markdown-Notiz...",
+      className: "font-serif text-base leading-8",
+    },
+  };
+  const copy = editorCopy[entry.type];
+
+  return (
+    <div className="min-h-0 overflow-hidden rounded-lg border border-border bg-background">
+      <textarea
+        value={entry.content}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={copy.placeholder}
+        spellCheck
+        className={cn(
+          "h-full w-full resize-none bg-transparent px-6 py-5 text-foreground outline-none placeholder:text-muted-foreground",
+          copy.className,
+        )}
+      />
     </div>
   );
 }
