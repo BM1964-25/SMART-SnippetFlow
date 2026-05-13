@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
-import { Bold, Copy, FilePlus2, Heart, List, ListOrdered, RotateCcw, Save, Search, Star, Trash2, X } from "lucide-react";
+import { ALargeSmall, Bold, Copy, FilePlus2, Heart, List, ListOrdered, RotateCcw, Save, Search, Star, Trash2, Undo2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -127,6 +127,8 @@ export function LibraryPage({
   }, [activeView, narrowedEntries, sortMode]);
   const renderedEntries = visibleEntries.slice(0, entryRenderLimit);
   const hasMoreEntries = renderedEntries.length < visibleEntries.length;
+  const hasActiveListFilters =
+    query.trim().length > 0 || categoryFilter !== "all" || tagFilter !== "all" || activeType !== defaultType || sortMode !== "recent";
 
   const selectedEntry = useMemo(() => {
     return entries.find((entry) => entry.id === selectedId) ?? visibleEntries[0] ?? entries[0];
@@ -400,6 +402,14 @@ export function LibraryPage({
     }
   }
 
+  function resetListFilters() {
+    setQuery("");
+    setCategoryFilter("all");
+    setTagFilter("all");
+    setSortMode("recent");
+    setActiveType(defaultType);
+  }
+
   async function confirmPendingSelection() {
     if (!pendingSelectionId) {
       return;
@@ -431,7 +441,7 @@ export function LibraryPage({
             </Button>
           </div>
 
-          <div className="mt-6 grid grid-cols-[minmax(0,1fr)_180px_160px] gap-3">
+          <div className="mt-6 grid grid-cols-[minmax(0,1fr)_180px_160px_40px] gap-3">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Titel, Kategorie oder Tag suchen" className="pl-9" />
@@ -460,6 +470,15 @@ export function LibraryPage({
                 </option>
               ))}
             </select>
+            <Button
+              onClick={resetListFilters}
+              variant="outline"
+              size="icon"
+              title="Filter zurücksetzen"
+              disabled={!hasActiveListFilters}
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -516,15 +535,24 @@ export function LibraryPage({
           )}
           <div className="grid gap-2">
             {renderedEntries.map((entry) => (
-              <button
+              <div
                 key={entry.id}
-                onClick={() => handleSelectEntry(entry.id)}
                 className={cn(
-                  "rounded-lg border border-border bg-card px-3 py-3 text-left shadow-sm transition-colors hover:border-ring",
+                  "group relative rounded-lg border border-border bg-card px-3 py-3 pr-11 text-left shadow-sm transition-colors hover:border-ring",
                   draft?.id === entry.id && "border-ring",
                 )}
               >
-                <div className="flex items-start justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDeleteCandidate(entry)}
+                  title="Eintrag löschen"
+                  aria-label="Eintrag löschen"
+                  className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground opacity-0 transition-opacity hover:border-border hover:bg-muted hover:text-foreground group-hover:opacity-100 focus:opacity-100"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+                <button type="button" onClick={() => handleSelectEntry(entry.id)} className="block w-full text-left">
+                  <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Badge className="px-1.5 py-0 text-[11px]">{typeLabel[entry.type]}</Badge>
@@ -535,13 +563,14 @@ export function LibraryPage({
                     <h2 className="mt-2 truncate text-[13px] font-semibold">{entry.title}</h2>
                     <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{entry.description || "Keine Beschreibung"}</p>
                   </div>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {entry.tags.map((tag) => (
-                    <Badge key={tag} className="px-1.5 py-0 text-[11px]">{tag}</Badge>
-                  ))}
-                </div>
-              </button>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {entry.tags.map((tag) => (
+                      <Badge key={tag} className="px-1.5 py-0 text-[11px]">{tag}</Badge>
+                    ))}
+                  </div>
+                </button>
+              </div>
             ))}
             {hasMoreEntries && (
               <Button
@@ -797,6 +826,13 @@ export function LibraryPage({
 
 function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; onChange: (content: string) => void; onCopy: () => void }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const undoStackRef = useRef<string[]>([]);
+  const [isTextLarge, setIsTextLarge] = useState(false);
+
+  useEffect(() => {
+    undoStackRef.current = [];
+    setIsTextLarge(false);
+  }, [entry.id]);
 
   if (entry.type === "code") {
     return (
@@ -846,6 +882,26 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
     },
   };
   const copy = editorCopy[entry.type];
+  const pushUndoState = () => {
+    const last = undoStackRef.current.at(-1);
+    if (last !== entry.content) {
+      undoStackRef.current = [...undoStackRef.current.slice(-29), entry.content];
+    }
+  };
+  const updateContent = (content: string) => {
+    pushUndoState();
+    onChange(content);
+  };
+  const undoLastContentChange = () => {
+    const previous = undoStackRef.current.at(-1);
+    if (previous === undefined) {
+      return;
+    }
+
+    undoStackRef.current = undoStackRef.current.slice(0, -1);
+    onChange(previous);
+    window.requestAnimationFrame(() => textareaRef.current?.focus());
+  };
   const applyMarkdown = (kind: "bold" | "bullet" | "numbered") => {
     const textarea = textareaRef.current;
     if (!textarea) {
@@ -866,7 +922,7 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
     const nextContent = `${value.slice(0, selectionStart)}${replacement}${value.slice(selectionEnd)}`;
     const nextCursor = selectionStart + replacement.length;
 
-    onChange(nextContent);
+    updateContent(nextContent);
     window.requestAnimationFrame(() => {
       textarea.focus();
       textarea.setSelectionRange(nextCursor, nextCursor);
@@ -878,9 +934,18 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
       <div className="absolute left-3 top-3 z-10 flex items-center gap-1">
         <button
           type="button"
+          onClick={undoLastContentChange}
+          title="Letzte Inhaltsänderung rückgängig"
+          aria-label="Letzte Inhaltsänderung rückgängig"
+          className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
+        >
+          <Undo2 className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
           onClick={() => applyMarkdown("bold")}
-          title="Fett formatieren"
-          aria-label="Fett formatieren"
+          title="Fett als Markdown einfügen"
+          aria-label="Fett als Markdown einfügen"
           className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
         >
           <Bold className="h-4 w-4" />
@@ -903,6 +968,18 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
         >
           <ListOrdered className="h-4 w-4" />
         </button>
+        <button
+          type="button"
+          onClick={() => setIsTextLarge((current) => !current)}
+          title={isTextLarge ? "Schrift normal anzeigen" : "Schrift vergrößern"}
+          aria-label={isTextLarge ? "Schrift normal anzeigen" : "Schrift vergrößern"}
+          className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground",
+            isTextLarge && "border-ring text-foreground",
+          )}
+        >
+          <ALargeSmall className="h-4 w-4" />
+        </button>
       </div>
       <button
         type="button"
@@ -916,12 +993,13 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
       <textarea
         ref={textareaRef}
         value={entry.content}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => updateContent(event.target.value)}
         placeholder={copy.placeholder}
         spellCheck
         className={cn(
           "h-full w-full resize-none bg-transparent px-6 pb-5 pt-14 pr-14 text-foreground outline-none placeholder:text-muted-foreground",
           copy.className,
+          isTextLarge && "text-[15px] leading-7",
         )}
       />
     </div>
