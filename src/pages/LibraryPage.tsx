@@ -162,6 +162,12 @@ export function LibraryPage({
         .filter((option) => option.fieldKey === activeFieldKey)
         .sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label))
     : [];
+  const tagSuggestions = draft
+    ? availableTags
+        .filter((tag) => !draft.tags.includes(tag))
+        .filter((tag) => tag.toLowerCase().includes(tagInput.trim().toLowerCase()))
+        .slice(0, 6)
+    : [];
   const dashboardStats = useMemo(() => createDashboardStats(entries), [entries]);
   const recentEntries = entries.slice(0, 5);
   const favoriteEntries = entries.filter((entry) => entry.isFavorite).slice(0, 5);
@@ -313,6 +319,15 @@ export function LibraryPage({
 
     const tag = tagInput.trim();
     if (!tag) {
+      return;
+    }
+
+    setDraft({ ...draft, tags: [...new Set([...draft.tags, tag])] });
+    setTagInput("");
+  }
+
+  function handleApplyTag(tag: string) {
+    if (!draft) {
       return;
     }
 
@@ -625,17 +640,43 @@ export function LibraryPage({
 
               <div className="grid gap-3 rounded-lg border border-border bg-background p-4">
                 <div className={cn("grid gap-3", draft.type === "prompt" ? "grid-cols-[minmax(0,1fr)_220px_auto_auto]" : "grid-cols-[minmax(0,1fr)_220px_auto]")}>
-                  <Input
-                    value={tagInput}
-                    onChange={(event) => setTagInput(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        handleAddTag();
-                      }
-                    }}
-                    placeholder="Tag eingeben"
-                  />
+                  <div className="relative">
+                    <Input
+                      value={tagInput}
+                      onChange={(event) => setTagInput(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          if (tagSuggestions.length > 0) {
+                            handleApplyTag(tagSuggestions[0]);
+                            return;
+                          }
+                          handleAddTag();
+                        }
+                      }}
+                      placeholder="Tag eingeben"
+                    />
+                    {tagInput.trim().length > 0 && tagSuggestions.length > 0 && (
+                      <div className="absolute left-0 right-0 top-11 z-20 rounded-md border border-border bg-card p-2 shadow-soft">
+                        <p className="px-2 pb-1 text-xs font-medium text-muted-foreground">Bestehende Tags</p>
+                        <div className="flex flex-wrap gap-2">
+                          {tagSuggestions.map((tag) => (
+                            <button
+                              key={tag}
+                              type="button"
+                              onMouseDown={(event) => {
+                                event.preventDefault();
+                                handleApplyTag(tag);
+                              }}
+                              className="rounded-sm border border-border bg-background px-2 py-1 text-xs text-foreground hover:bg-muted"
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   <Input value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="Neue Kategorie" />
                   <Button onClick={handleAddCategory} variant="outline">Kategorie hinzufügen</Button>
                   {draft.type === "prompt" && (
