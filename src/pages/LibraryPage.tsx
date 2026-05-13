@@ -156,6 +156,7 @@ export function LibraryPage({
   const activeFieldLabel = showAiSystemField ? getFieldLabelForType(draft.type) : "";
   const previewOptions = draft ? getPreviewOptionsForType(draft.type) : [];
   const shouldShowPreview = Boolean(draft && draft.type !== "prompt");
+  const previewLabel = draft?.type === "code" ? "Live-Preview" : "Markdown-Vorschau";
   const activeFieldOptions = activeFieldKey
     ? fieldOptions
         .filter((option) => option.fieldKey === activeFieldKey)
@@ -603,7 +604,7 @@ export function LibraryPage({
                 )}
                 {shouldShowPreview && (
                   <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                    Live-Preview
+                    {previewLabel}
                     <select
                       value={draft.previewKind ?? ""}
                       onChange={(event) =>
@@ -695,14 +696,14 @@ export function LibraryPage({
             {shouldShowPreview && (
               <div className="grid grid-cols-[220px_minmax(0,1fr)] overflow-hidden rounded-lg border border-border bg-background">
                 <div className="border-r border-border p-4">
-                  <p className="text-sm font-medium">Live-Preview</p>
+                  <p className="text-sm font-medium">{previewLabel}</p>
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">
                     {draft.type === "code" ? "Ausgabe für HTML, CSS, JavaScript oder Markdown." : "Markdown-Vorschau für strukturierte Inhalte."}
                   </p>
                   <div className="mt-3">{preview ? <Badge>{preview.kind.toUpperCase()}</Badge> : <Badge>Inaktiv</Badge>}</div>
                 </div>
                 <iframe
-                  title="Live-Preview"
+                  title={previewLabel}
                   sandbox=""
                   srcDoc={previewHtml}
                   className="h-full w-full bg-white"
