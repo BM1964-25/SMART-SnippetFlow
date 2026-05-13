@@ -3,7 +3,7 @@ export type PreviewKind = "html" | "css" | "javascript" | "markdown";
 export type LicenseStatus = "active" | "expired" | "invalid";
 export type AppView = "all" | "prompts" | "code" | "workflows" | "notes" | "favorites" | "settings";
 export type ExportFormat = "json" | "markdown" | "txt";
-export type FieldOptionKey = "aiSystem" | "language" | "workflowArea" | "noteCategory";
+export type FieldOptionKey = "prompt" | "code" | "text" | "analysis";
 
 export interface LibraryEntry {
   id: string;
@@ -72,6 +72,11 @@ export type JsonImportResult =
       importedEntries: number;
       importedCategories: number;
     };
+
+export interface DeleteCategoryResult {
+  id: string;
+  deleted: boolean;
+}
 
 export interface PreviewDescriptor {
   kind: PreviewKind;

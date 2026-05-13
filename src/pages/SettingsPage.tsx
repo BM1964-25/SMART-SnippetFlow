@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
+import { Archive, Database, HardDrive, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { FieldOption, FieldOptionKey, LicenseState, LicenseStatus } from "@/types";
+import type { LicenseState, LicenseStatus } from "@/types";
 
 const statusLabel: Record<LicenseStatus, string> = {
   active: "Aktiv",
@@ -10,11 +11,27 @@ const statusLabel: Record<LicenseStatus, string> = {
   invalid: "Ungültig",
 };
 
-const optionSections: Array<{ fieldKey: FieldOptionKey; title: string; description: string }> = [
-  { fieldKey: "aiSystem", title: "KI-Systeme", description: "Auswahlwerte für Prompt-Einträge." },
-  { fieldKey: "language", title: "Sprachen", description: "Auswahlwerte für Code-Snippets." },
-  { fieldKey: "workflowArea", title: "Workflow-Bereiche", description: "Auswahlwerte für Workflows." },
-  { fieldKey: "noteCategory", title: "Notiz-Kategorien", description: "Auswahlwerte für Notizen." },
+const dataManagementItems = [
+  {
+    title: "Lokale Speicherung",
+    description: "Deine Bibliothek liegt als SQLite-Datenbank auf diesem Rechner im App-Datenverzeichnis.",
+    icon: HardDrive,
+  },
+  {
+    title: "Gespeicherte Inhalte",
+    description: "Prompts, Code, Workflows, Notizen, Kategorien, Tags, Favoriten, Lizenzstatus und Einstellungen.",
+    icon: Database,
+  },
+  {
+    title: "Exportumfang",
+    description: "Der JSON-Export enthält die gesamte Bibliothek, unabhängig vom gerade geöffneten Bereich.",
+    icon: Archive,
+  },
+  {
+    title: "Datenschutz",
+    description: "Es gibt keine automatische Cloud-Synchronisierung und keine automatische Datenübertragung.",
+    icon: ShieldCheck,
+  },
 ];
 
 export function SettingsPage({
@@ -26,19 +43,6 @@ export function SettingsPage({
 }) {
   const [draft, setDraft] = useState(license);
   const [dataNotice, setDataNotice] = useState<string | null>(null);
-  const [fieldOptions, setFieldOptions] = useState<FieldOption[]>([]);
-  const groupedOptions = useMemo(() => {
-    return optionSections.map((section) => ({
-      ...section,
-      options: fieldOptions
-        .filter((option) => option.fieldKey === section.fieldKey)
-        .sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label)),
-    }));
-  }, [fieldOptions]);
-
-  useEffect(() => {
-    void window.snippetFlow?.fieldOptions.list().then(setFieldOptions);
-  }, []);
 
   async function handleSave() {
     const nextLicense: LicenseState = {
@@ -71,50 +75,6 @@ export function SettingsPage({
     }
 
     setDataNotice(`${result.importedEntries} Einträge und ${result.importedCategories} Kategorien importiert`);
-  }
-
-  async function handleAddOption(fieldKey: FieldOptionKey) {
-    const label = window.prompt("Neuen Auswahlwert hinzufügen");
-    if (!label?.trim()) {
-      return;
-    }
-
-    const created = await window.snippetFlow?.fieldOptions.create(fieldKey, label.trim());
-    if (created) {
-      setFieldOptions((current) => [...current.filter((option) => option.id !== created.id), created]);
-    }
-  }
-
-  async function handleRenameOption(option: FieldOption) {
-    if (option.isSystem) {
-      return;
-    }
-
-    const label = window.prompt("Auswahlwert umbenennen", option.label);
-    if (!label?.trim()) {
-      return;
-    }
-
-    const renamed = await window.snippetFlow?.fieldOptions.rename(option.id, label.trim());
-    if (renamed) {
-      setFieldOptions((current) => current.map((item) => (item.id === renamed.id ? renamed : item)));
-    }
-  }
-
-  async function handleDeleteOption(option: FieldOption) {
-    if (option.isSystem) {
-      return;
-    }
-
-    const confirmed = window.confirm(`"${option.label}" aus der Auswahl entfernen? Bestehende Einträge bleiben unverändert.`);
-    if (!confirmed) {
-      return;
-    }
-
-    const result = await window.snippetFlow?.fieldOptions.delete(option.id);
-    if (result?.deleted) {
-      setFieldOptions((current) => current.filter((item) => item.id !== option.id));
-    }
   }
 
   return (
@@ -166,69 +126,44 @@ export function SettingsPage({
 
         <section className="mt-6 rounded-lg border border-border bg-card p-6 shadow-sm">
           <div>
-            <h2 className="text-base font-semibold">Daten sichern</h2>
+            <h2 className="text-base font-semibold">Datenmanagement</h2>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              SQLite bleibt die interne Datenbank. JSON dient nur als manuelles Backup oder für einen späteren Umzug.
+              Übersicht darüber, was SMART SnippetFlow speichert und wie du deine Daten sichern kannst.
             </p>
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Button onClick={handleExportJson}>JSON exportieren</Button>
-            <Button onClick={handleImportJson} variant="outline">JSON importieren</Button>
-          </div>
-
-          {dataNotice && <p className="mt-4 text-sm text-muted-foreground">{dataNotice}</p>}
-        </section>
-
-        <section className="mt-6 rounded-lg border border-border bg-card p-6 shadow-sm">
-          <div>
-            <h2 className="text-base font-semibold">Auswahlwerte</h2>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              Systemwerte sind geschützt. Eigene Werte kannst du ergänzen, umbenennen oder aus der Auswahl entfernen.
-            </p>
-          </div>
-
-          <div className="mt-6 grid gap-5">
-            {groupedOptions.map((section) => (
-              <div key={section.fieldKey} className="rounded-lg border border-border bg-background p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="text-sm font-semibold">{section.title}</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">{section.description}</p>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            {dataManagementItems.map((item) => (
+              <div key={item.title} className="rounded-lg border border-border bg-background p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-card">
+                    <item.icon className="h-4 w-4 text-muted-foreground" />
                   </div>
-                  <Button variant="outline" onClick={() => void handleAddOption(section.fieldKey)}>
-                    Wert hinzufügen
-                  </Button>
-                </div>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {section.options.map((option) => (
-                    <div key={option.id} className="flex items-center gap-2 rounded-md border border-border bg-card px-2 py-1">
-                      <span className="text-sm">{option.label}</span>
-                      {option.isSystem && <Badge>Standard</Badge>}
-                      {!option.isSystem && (
-                        <>
-                          <button onClick={() => void handleRenameOption(option)} className="text-xs text-muted-foreground hover:text-foreground">
-                            Umbenennen
-                          </button>
-                          <button onClick={() => void handleDeleteOption(option)} className="text-xs text-rose-600 hover:text-rose-700">
-                            Löschen
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  ))}
+                  <div>
+                    <h3 className="text-sm font-semibold">{item.title}</h3>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.description}</p>
+                  </div>
                 </div>
               </div>
             ))}
+          </div>
 
-            <div className="rounded-lg border border-dashed border-border bg-background p-4">
-              <h3 className="text-sm font-semibold">Tags</h3>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Tags bleiben bewusst frei eingebbar und werden nicht streng verwaltet.
-              </p>
+          <div className="mt-6 rounded-lg border border-dashed border-border bg-background p-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-semibold">Manuelle Sicherung</h3>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  JSON eignet sich für Backups und den späteren Umzug auf ein anderes System.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={handleExportJson}>JSON exportieren</Button>
+                <Button onClick={handleImportJson} variant="outline">JSON importieren</Button>
+              </div>
             </div>
           </div>
+
+          {dataNotice && <p className="mt-4 text-sm text-muted-foreground">{dataNotice}</p>}
         </section>
       </div>
     </div>

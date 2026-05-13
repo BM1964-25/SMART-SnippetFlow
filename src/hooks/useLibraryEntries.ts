@@ -1,31 +1,31 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { EntryType, FieldOption, LibraryCategory, LibraryEntry, LibraryEntryInput } from "@/types";
-import { demoEntries } from "@/db/demoData";
+import { demoCategories, demoEntries, demoFieldOptions } from "@/db/demoData";
 
 export function useLibraryEntries(activeType: EntryType | "all", query: string) {
   const [entries, setEntries] = useState<LibraryEntry[]>(demoEntries);
-  const [categories, setCategories] = useState<LibraryCategory[]>([]);
-  const [fieldOptions, setFieldOptions] = useState<FieldOption[]>([]);
+  const [categories, setCategories] = useState<LibraryCategory[]>(demoCategories);
+  const [fieldOptions, setFieldOptions] = useState<FieldOption[]>(demoFieldOptions);
   const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(() => {
     setIsLoading(true);
     return Promise.all([
       window.snippetFlow?.library.list() ?? Promise.resolve(demoEntries),
-      window.snippetFlow?.categories.list() ?? Promise.resolve([]),
-      window.snippetFlow?.fieldOptions.list() ?? Promise.resolve([]),
+      window.snippetFlow?.categories.list() ?? Promise.resolve(demoCategories),
+      window.snippetFlow?.fieldOptions.list() ?? Promise.resolve(demoFieldOptions),
     ])
       .then(([storedEntries, storedCategories, storedFieldOptions]) => {
         if (storedEntries.length > 0) {
           setEntries(storedEntries);
         }
-        setCategories(storedCategories);
-        setFieldOptions(storedFieldOptions);
+        setCategories(storedCategories.length > 0 ? storedCategories : demoCategories);
+        setFieldOptions(storedFieldOptions.length > 0 ? storedFieldOptions : demoFieldOptions);
       })
       .catch(() => {
         setEntries(demoEntries);
-        setCategories([]);
-        setFieldOptions([]);
+        setCategories(demoCategories);
+        setFieldOptions(demoFieldOptions);
       })
       .finally(() => {
         setIsLoading(false);
@@ -86,6 +86,21 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
     return localCategory;
   }, []);
 
+  const deleteCategory = useCallback(async (id: string) => {
+    const result = await window.snippetFlow?.categories.delete(id);
+
+    if (!window.snippetFlow || result?.deleted) {
+      setCategories((current) => current.filter((category) => category.id !== id));
+      setEntries((current) =>
+        current.map((entry) =>
+          entry.categoryId === id ? { ...entry, categoryId: undefined, categoryName: undefined } : entry,
+        ),
+      );
+    }
+
+    return result ?? { id, deleted: true };
+  }, []);
+
   const createFieldOption = useCallback(async (fieldKey: FieldOption["fieldKey"], label: string) => {
     const saved = await window.snippetFlow?.fieldOptions.create(fieldKey, label);
 
@@ -113,7 +128,7 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
       const matchesType = activeType === "all" || entry.type === activeType;
       const matchesQuery =
         normalizedQuery.length === 0 ||
-        [entry.title, entry.description, entry.content, entry.language, entry.fieldValue, ...entry.tags]
+        [entry.title, entry.description, entry.content, entry.language, entry.fieldValue, entry.categoryName, ...entry.tags]
           .filter(Boolean)
           .join(" ")
           .toLowerCase()
@@ -134,6 +149,7 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
     toggleFavorite,
     deleteEntry,
     saveCategory,
+    deleteCategory,
     createFieldOption,
     refresh,
   };

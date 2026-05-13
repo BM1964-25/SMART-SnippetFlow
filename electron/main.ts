@@ -4,6 +4,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import {
   createExportPayload,
   createFieldOption,
+  deleteCategory,
   deleteFieldOption,
   duplicateEntry,
   getLicenseState,
@@ -80,6 +81,7 @@ ipcMain.handle("library:favorite", (_event, id: string) => toggleFavorite(id));
 ipcMain.handle("library:delete", (_event, id: string) => deleteEntry(id));
 ipcMain.handle("categories:list", () => listCategories());
 ipcMain.handle("categories:save", (_event, name: string) => saveCategory(name));
+ipcMain.handle("categories:delete", (_event, id: string) => deleteCategory(id));
 ipcMain.handle("field-options:list", () => listFieldOptions());
 ipcMain.handle("field-options:create", (_event, fieldKey: FieldOptionKey, label: string) => createFieldOption(fieldKey, label));
 ipcMain.handle("field-options:rename", (_event, id: string, label: string) => renameFieldOption(id, label));

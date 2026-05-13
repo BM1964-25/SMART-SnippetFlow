@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Editor from "@monaco-editor/react";
-import { Copy, FilePlus2, Heart, RotateCcw, Save, Search, SlidersHorizontal, Star, Trash2 } from "lucide-react";
+import { Copy, FilePlus2, Heart, RotateCcw, Save, Search, Star, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,10 +18,24 @@ const filters: Array<{ label: string; value: EntryType | "all" }> = [
 ];
 
 const typeLabel: Record<EntryType, string> = {
-  prompt: "Prompt",
+  prompt: "Prompts",
   code: "Code",
   workflow: "Workflow",
   note: "Notiz",
+};
+
+const editorTitle: Record<EntryType, string> = {
+  prompt: "Prompts",
+  code: "Code",
+  workflow: "Workflows",
+  note: "Notizen",
+};
+
+const editorDescription: Record<EntryType, string> = {
+  prompt: "KI-Anweisungen, Vorlagen und wiederverwendbare Arbeitsaufträge.",
+  code: "Snippets, Funktionen, technische Muster und schnelle Kopiervorlagen.",
+  workflow: "Schrittfolgen, Abläufe und wiederkehrende Arbeitsroutinen.",
+  note: "Freier Text, Dokumentation, Gedanken und Markdown-Notizen.",
 };
 
 const viewTitle: Record<Exclude<AppView, "settings">, string> = {
@@ -62,21 +76,52 @@ export function LibraryPage({
   const [query, setQuery] = useState("");
   const [activeType, setActiveType] = useState<EntryType | "all">(defaultType);
   const [sortMode, setSortMode] = useState<"recent" | "title">("recent");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [tagFilter, setTagFilter] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState("");
+  const [tagInput, setTagInput] = useState("");
   const [pendingSelectionId, setPendingSelectionId] = useState<string | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<LibraryEntry | null>(null);
-  const { categories, fieldOptions, filteredEntries, entries, isLoading, saveEntry, duplicateEntry, toggleFavorite, deleteEntry, saveCategory, createFieldOption } =
+  const { categories, fieldOptions, filteredEntries, entries, isLoading, saveEntry, duplicateEntry, toggleFavorite, deleteEntry, saveCategory, deleteCategory, createFieldOption } =
     useLibraryEntries(activeType, query);
+
+  const availableTags = useMemo(() => {
+    return [...new Set(entries.flatMap((entry) => entry.tags).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  }, [entries]);
+
+  const categoryOptions = useMemo(() => {
+    const options = new Map<string, { id: string; name: string }>();
+
+    for (const category of categories) {
+      options.set(category.id, { id: category.id, name: category.name });
+    }
+
+    for (const entry of entries) {
+      if (entry.categoryId && entry.categoryName) {
+        options.set(entry.categoryId, { id: entry.categoryId, name: entry.categoryName });
+      }
+    }
+
+    return [...options.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [categories, entries]);
+
+  const narrowedEntries = useMemo(() => {
+    return filteredEntries.filter((entry) => {
+      const matchesCategory = categoryFilter === "all" || entry.categoryId === categoryFilter;
+      const matchesTag = tagFilter === "all" || entry.tags.includes(tagFilter);
+      return matchesCategory && matchesTag;
+    });
+  }, [categoryFilter, filteredEntries, tagFilter]);
 
   const visibleEntries = useMemo(() => {
     if (activeView === "favorites") {
-      return sortEntries(filteredEntries.filter((entry) => entry.isFavorite), sortMode);
+      return sortEntries(narrowedEntries.filter((entry) => entry.isFavorite), sortMode);
     }
 
-    return sortEntries(filteredEntries, sortMode);
-  }, [activeView, filteredEntries, sortMode]);
+    return sortEntries(narrowedEntries, sortMode);
+  }, [activeView, narrowedEntries, sortMode]);
 
   const selectedEntry = useMemo(() => {
     return entries.find((entry) => entry.id === selectedId) ?? visibleEntries[0] ?? entries[0];
@@ -86,7 +131,15 @@ export function LibraryPage({
 
   useEffect(() => {
     setActiveType(defaultType);
+    if (defaultType !== "all") {
+      setSelectedId(null);
+    }
   }, [defaultType]);
+
+  useEffect(() => {
+    setCategoryFilter("all");
+    setTagFilter("all");
+  }, [activeView]);
 
   useEffect(() => {
     if (selectedEntry) {
@@ -98,8 +151,11 @@ export function LibraryPage({
   const preview = draft ? createPreviewDescriptor(draft) : null;
   const previewHtml = createSandboxPreviewHtml(preview);
   const isDirty = Boolean(draft && selectedEntry && !areEntriesEqual(draft, selectedEntry));
-  const activeFieldKey = draft ? getFieldKeyForType(draft.type) : null;
-  const activeFieldLabel = draft ? getFieldLabelForType(draft.type) : "";
+  const showAiSystemField = draft?.type === "prompt";
+  const activeFieldKey = showAiSystemField ? getFieldKeyForType(draft.type) : null;
+  const activeFieldLabel = showAiSystemField ? getFieldLabelForType(draft.type) : "";
+  const previewOptions = draft ? getPreviewOptionsForType(draft.type) : [];
+  const shouldShowPreview = Boolean(draft && draft.type !== "prompt");
   const activeFieldOptions = activeFieldKey
     ? fieldOptions
         .filter((option) => option.fieldKey === activeFieldKey)
@@ -228,6 +284,49 @@ export function LibraryPage({
     showNotice("Kategorie erstellt");
   }
 
+  async function handleDeleteCategory() {
+    if (!draft?.categoryId) {
+      return;
+    }
+
+    const categoryName = draft.categoryName ?? "diese Kategorie";
+    const confirmed = window.confirm(`"${categoryName}" löschen? Einträge mit dieser Kategorie bleiben erhalten und werden auf "Ohne Kategorie" gesetzt.`);
+    if (!confirmed) {
+      return;
+    }
+
+    const result = await deleteCategory(draft.categoryId);
+    if (result.deleted) {
+      setDraft({ ...draft, categoryId: undefined, categoryName: undefined });
+      if (categoryFilter === result.id) {
+        setCategoryFilter("all");
+      }
+      showNotice("Kategorie gelöscht");
+    }
+  }
+
+  function handleAddTag() {
+    if (!draft) {
+      return;
+    }
+
+    const tag = tagInput.trim();
+    if (!tag) {
+      return;
+    }
+
+    setDraft({ ...draft, tags: [...new Set([...draft.tags, tag])] });
+    setTagInput("");
+  }
+
+  function handleRemoveTag(tag: string) {
+    if (!draft) {
+      return;
+    }
+
+    setDraft({ ...draft, tags: draft.tags.filter((item) => item !== tag) });
+  }
+
   async function handleFieldValueChange(value: string) {
     if (!draft || !activeFieldKey) {
       return;
@@ -269,6 +368,13 @@ export function LibraryPage({
     setSelectedId(id);
   }
 
+  function handleTypeFilterChange(type: EntryType | "all") {
+    setActiveType(type);
+    if (!isDirty) {
+      setSelectedId(null);
+    }
+  }
+
   async function confirmPendingSelection() {
     if (!pendingSelectionId) {
       return;
@@ -300,14 +406,35 @@ export function LibraryPage({
             </Button>
           </div>
 
-          <div className="mt-6 flex gap-3">
+          <div className="mt-6 grid grid-cols-[minmax(0,1fr)_180px_160px] gap-3">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Suchen" className="pl-9" />
+              <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Titel, Kategorie oder Tag suchen" className="pl-9" />
             </div>
-            <Button variant="outline" size="icon" title="Filter">
-              <SlidersHorizontal className="h-4 w-4" />
-            </Button>
+            <select
+              value={categoryFilter}
+              onChange={(event) => setCategoryFilter(event.target.value)}
+              className="h-10 rounded-md border border-border bg-background px-2 text-sm outline-none"
+            >
+              <option value="all">Alle Kategorien</option>
+              {categoryOptions.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={tagFilter}
+              onChange={(event) => setTagFilter(event.target.value)}
+              className="h-10 rounded-md border border-border bg-background px-2 text-sm outline-none"
+            >
+              <option value="all">Alle Tags</option>
+              {availableTags.map((tag) => (
+                <option key={tag} value={tag}>
+                  {tag}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -315,7 +442,7 @@ export function LibraryPage({
               {filters.map((filter) => (
                 <button
                   key={filter.value}
-                  onClick={() => setActiveType(filter.value)}
+                  onClick={() => handleTypeFilterChange(filter.value)}
                   className={cn(
                     "h-8 rounded-md border border-transparent px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
                     activeType === filter.value && "border-border bg-muted text-foreground",
@@ -397,76 +524,18 @@ export function LibraryPage({
 
       {draft && (
         <section className="flex min-w-0 flex-col bg-card">
-          <header className="border-b border-border px-8 pb-5 pt-8">
-            <div className="flex items-start justify-between gap-4">
-              <div className="grid min-w-0 flex-1 gap-3">
-                <div className="flex h-5 items-center gap-2">
+          <header className="border-b border-border px-8 pb-6 pt-8">
+            <div className="flex items-start justify-between gap-5">
+              <div className="min-w-0 flex-1">
+                <div className="flex min-h-5 items-center gap-2">
                   {isDirty ? <Badge className="border-amber-200 bg-amber-50 text-amber-700">Ungespeichert</Badge> : <Badge>Synchron</Badge>}
                   {notice && <span className="text-xs text-muted-foreground">{notice}</span>}
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <select
-                    value={draft.type}
-                    onChange={(event) => setDraft({ ...draft, type: event.target.value as EntryType })}
-                    className="h-8 rounded-md border border-border bg-background px-2 text-sm outline-none"
-                  >
-                    <option value="prompt">Prompt</option>
-                    <option value="code">Code</option>
-                    <option value="workflow">Workflow</option>
-                    <option value="note">Notiz</option>
-                  </select>
-                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                    {activeFieldLabel}
-                    <select
-                      value={draft.fieldValue ?? ""}
-                      onChange={(event) => void handleFieldValueChange(event.target.value)}
-                      className="h-8 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none"
-                    >
-                      <option value="">Nicht gesetzt</option>
-                      {activeFieldOptions.map((option) => (
-                        <option key={option.id} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                      <option value="__new__">Neuen Wert hinzufügen...</option>
-                    </select>
-                  </label>
-                  <select
-                    value={draft.categoryId ?? ""}
-                    onChange={(event) => {
-                      const category = categories.find((item) => item.id === event.target.value);
-                      setDraft({ ...draft, categoryId: category?.id, categoryName: category?.name });
-                    }}
-                    className="h-8 rounded-md border border-border bg-background px-2 text-sm outline-none"
-                  >
-                    <option value="">Ohne Kategorie</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={draft.previewKind ?? ""}
-                    onChange={(event) =>
-                      setDraft({ ...draft, previewKind: (event.target.value || undefined) as PreviewKind | undefined })
-                    }
-                    className="h-8 rounded-md border border-border bg-background px-2 text-sm outline-none"
-                  >
-                    <option value="">Keine Preview</option>
-                    <option value="html">HTML</option>
-                    <option value="css">CSS</option>
-                    <option value="javascript">JavaScript</option>
-                    <option value="markdown">Markdown</option>
-                  </select>
+
+                <div className="mt-3">
+                  <h2 className="text-2xl font-semibold tracking-normal">{editorTitle[draft.type]}</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">{editorDescription[draft.type]}</p>
                 </div>
-                <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="h-11 text-xl font-semibold" />
-                <textarea
-                  value={draft.description}
-                  onChange={(event) => setDraft({ ...draft, description: event.target.value })}
-                  placeholder="Beschreibung"
-                  className="min-h-16 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm leading-6 outline-none focus:border-ring focus:ring-2 focus:ring-ring/15"
-                />
               </div>
               <div className="flex gap-2">
                 <Button onClick={handleSave} variant="outline" size="icon" title="Speichern">
@@ -489,41 +558,157 @@ export function LibraryPage({
                 </Button>
               </div>
             </div>
+
+            <div className="mt-6 grid gap-4">
+              <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                Titel
+                <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="h-11 text-xl font-semibold" />
+              </label>
+
+              <div className={cn("grid gap-3", shouldShowPreview ? "grid-cols-3" : showAiSystemField ? "grid-cols-2" : "grid-cols-1")}>
+                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                  Kategorie
+                  <select
+                    value={draft.categoryId ?? ""}
+                    onChange={(event) => {
+                      const category = categoryOptions.find((item) => item.id === event.target.value);
+                      setDraft({ ...draft, categoryId: category?.id, categoryName: category?.name });
+                    }}
+                    className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none"
+                  >
+                    <option value="">Ohne Kategorie</option>
+                    {categoryOptions.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {showAiSystemField && (
+                  <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                    {activeFieldLabel}
+                    <select
+                      value={draft.fieldValue ?? ""}
+                      onChange={(event) => void handleFieldValueChange(event.target.value)}
+                      className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none"
+                    >
+                      <option value="">Nicht gesetzt</option>
+                    {activeFieldOptions.map((option) => (
+                      <option key={option.id} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                )}
+                {shouldShowPreview && (
+                  <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                    Live-Preview
+                    <select
+                      value={draft.previewKind ?? ""}
+                      onChange={(event) =>
+                        setDraft({ ...draft, previewKind: (event.target.value || undefined) as PreviewKind | undefined })
+                      }
+                      className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none"
+                    >
+                      <option value="">Keine Preview</option>
+                      {previewOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </div>
+
+              <div className="grid gap-3 rounded-lg border border-border bg-background p-4">
+                <div className={cn("grid gap-3", draft.type === "prompt" ? "grid-cols-[minmax(0,1fr)_220px_auto_auto]" : "grid-cols-[minmax(0,1fr)_220px_auto]")}>
+                  <Input
+                    value={tagInput}
+                    onChange={(event) => setTagInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        handleAddTag();
+                      }
+                    }}
+                    placeholder="Tag eingeben"
+                  />
+                  <Input value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="Neue Kategorie" />
+                  <Button onClick={handleAddCategory} variant="outline">Kategorie hinzufügen</Button>
+                  {draft.type === "prompt" && (
+                    <Button
+                      onClick={handleDeleteCategory}
+                      variant="outline"
+                      disabled={!draft.categoryId}
+                      className="text-rose-600 hover:text-rose-700"
+                    >
+                      Kategorie löschen
+                    </Button>
+                  )}
+                </div>
+
+                <div className="flex min-h-7 flex-wrap gap-2">
+                  {draft.tags.filter(Boolean).map((tag) => (
+                    <Badge key={tag} className="gap-1 bg-card text-foreground">
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTag(tag)}
+                        aria-label={`${tag} entfernen`}
+                        className="rounded-sm text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                  {draft.categoryName && <Badge>{draft.categoryName}</Badge>}
+                </div>
+              </div>
+
+              <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                Beschreibung
+                <textarea
+                  value={draft.description}
+                  onChange={(event) => setDraft({ ...draft, description: event.target.value })}
+                  placeholder="Beschreibung"
+                  className="min-h-14 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm leading-6 outline-none focus:border-ring focus:ring-2 focus:ring-ring/15"
+                />
+              </label>
+            </div>
           </header>
 
-          <div className="grid min-h-0 flex-1 grid-rows-[auto_auto_minmax(0,1fr)_180px] gap-5 overflow-hidden px-8 py-6">
-            <div className="grid grid-cols-[minmax(0,1fr)_220px_auto] gap-3">
-              <Input
-                value={draft.tags.join(", ")}
-                onChange={(event) => setDraft({ ...draft, tags: event.target.value.split(",").map((tag) => tag.trim()) })}
-                placeholder="Tags mit Komma trennen"
+          <div className={cn(
+            "grid min-h-0 flex-1 gap-5 overflow-hidden px-8 py-6",
+            shouldShowPreview ? "grid-rows-[minmax(0,1fr)_180px]" : "grid-rows-[minmax(0,1fr)]",
+          )}>
+            <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-1">
+              <p className="text-xs font-medium text-muted-foreground">Inhalt</p>
+              <EntryContentEditor
+                entry={draft}
+                onChange={(content) => setDraft({ ...draft, content })}
+                onCopy={() => void handleCopy()}
               />
-              <Input value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="Neue Kategorie" />
-              <Button onClick={handleAddCategory} variant="outline">Hinzufügen</Button>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {draft.tags.filter(Boolean).map((tag) => (
-                <Badge key={tag}>{tag}</Badge>
-              ))}
-              {draft.categoryName && <Badge>{draft.categoryName}</Badge>}
-            </div>
-
-            <EntryContentEditor entry={draft} onChange={(content) => setDraft({ ...draft, content })} />
-
-            <div className="grid grid-cols-[220px_minmax(0,1fr)] overflow-hidden rounded-lg border border-border bg-background">
-              <div className="border-r border-border p-4">
-                <p className="text-sm font-medium">Live-Preview</p>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">Sandboxed iframe ist vorbereitet und isoliert eingebettet.</p>
-                <div className="mt-3">{preview ? <Badge>{preview.kind.toUpperCase()}</Badge> : <Badge>Inaktiv</Badge>}</div>
+            {shouldShowPreview && (
+              <div className="grid grid-cols-[220px_minmax(0,1fr)] overflow-hidden rounded-lg border border-border bg-background">
+                <div className="border-r border-border p-4">
+                  <p className="text-sm font-medium">Live-Preview</p>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    {draft.type === "code" ? "Ausgabe für HTML, CSS, JavaScript oder Markdown." : "Markdown-Vorschau für strukturierte Inhalte."}
+                  </p>
+                  <div className="mt-3">{preview ? <Badge>{preview.kind.toUpperCase()}</Badge> : <Badge>Inaktiv</Badge>}</div>
+                </div>
+                <iframe
+                  title="Live-Preview"
+                  sandbox=""
+                  srcDoc={previewHtml}
+                  className="h-full w-full bg-white"
+                />
               </div>
-              <iframe
-                title="Preview"
-                sandbox=""
-                srcDoc={previewHtml}
-                className="h-full w-full bg-white"
-              />
-            </div>
+            )}
           </div>
         </section>
       )}
@@ -550,10 +735,19 @@ export function LibraryPage({
   );
 }
 
-function EntryContentEditor({ entry, onChange }: { entry: LibraryEntry; onChange: (content: string) => void }) {
+function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; onChange: (content: string) => void; onCopy: () => void }) {
   if (entry.type === "code") {
     return (
-      <div className="min-h-0 overflow-hidden rounded-lg border border-border bg-background">
+      <div className="relative min-h-0 overflow-hidden rounded-lg border border-border bg-background">
+        <button
+          type="button"
+          onClick={onCopy}
+          title="Inhalt kopieren"
+          aria-label="Inhalt kopieren"
+          className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
+        >
+          <Copy className="h-4 w-4" />
+        </button>
         <Editor
           height="100%"
           value={entry.content}
@@ -577,7 +771,7 @@ function EntryContentEditor({ entry, onChange }: { entry: LibraryEntry; onChange
 
   const editorCopy: Record<Exclude<EntryType, "code">, { placeholder: string; className: string }> = {
     prompt: {
-      placeholder: "Schreibe hier deinen Prompt...",
+      placeholder: "Prompts-Inhalt eingeben...",
       className: "text-[15px] leading-7",
     },
     workflow: {
@@ -592,14 +786,23 @@ function EntryContentEditor({ entry, onChange }: { entry: LibraryEntry; onChange
   const copy = editorCopy[entry.type];
 
   return (
-    <div className="min-h-0 overflow-hidden rounded-lg border border-border bg-background">
+    <div className="relative min-h-0 overflow-hidden rounded-lg border border-border bg-background">
+      <button
+        type="button"
+        onClick={onCopy}
+        title="Inhalt kopieren"
+        aria-label="Inhalt kopieren"
+        className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
+      >
+        <Copy className="h-4 w-4" />
+      </button>
       <textarea
         value={entry.content}
         onChange={(event) => onChange(event.target.value)}
         placeholder={copy.placeholder}
         spellCheck
         className={cn(
-          "h-full w-full resize-none bg-transparent px-6 py-5 text-foreground outline-none placeholder:text-muted-foreground",
+          "h-full w-full resize-none bg-transparent px-6 py-5 pr-14 text-foreground outline-none placeholder:text-muted-foreground",
           copy.className,
         )}
       />
@@ -704,10 +907,10 @@ function createDashboardStats(entries: LibraryEntry[]) {
 
 function getFieldKeyForType(type: EntryType): FieldOptionKey {
   const map: Record<EntryType, FieldOptionKey> = {
-    prompt: "aiSystem",
-    code: "language",
-    workflow: "workflowArea",
-    note: "noteCategory",
+    prompt: "prompt",
+    code: "code",
+    workflow: "analysis",
+    note: "text",
   };
 
   return map[type];
@@ -716,12 +919,29 @@ function getFieldKeyForType(type: EntryType): FieldOptionKey {
 function getFieldLabelForType(type: EntryType) {
   const map: Record<EntryType, string> = {
     prompt: "KI-System",
-    code: "Sprache",
-    workflow: "Bereich",
-    note: "Kategorie",
+    code: "Code",
+    workflow: "Analyse",
+    note: "Text",
   };
 
   return map[type];
+}
+
+function getPreviewOptionsForType(type: EntryType): Array<{ value: PreviewKind; label: string }> {
+  if (type === "code") {
+    return [
+      { value: "html", label: "HTML" },
+      { value: "css", label: "CSS" },
+      { value: "javascript", label: "JavaScript" },
+      { value: "markdown", label: "Markdown" },
+    ];
+  }
+
+  if (type === "workflow" || type === "note") {
+    return [{ value: "markdown", label: "Markdown" }];
+  }
+
+  return [];
 }
 
 function getDefaultFieldValue(type: EntryType) {

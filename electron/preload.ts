@@ -21,6 +21,7 @@ const api = {
   categories: {
     list: (): Promise<LibraryCategory[]> => ipcRenderer.invoke("categories:list"),
     save: (name: string): Promise<LibraryCategory> => ipcRenderer.invoke("categories:save", name),
+    delete: (id: string): Promise<{ id: string; deleted: boolean }> => ipcRenderer.invoke("categories:delete", id),
   },
   fieldOptions: {
     list: (): Promise<FieldOption[]> => ipcRenderer.invoke("field-options:list"),

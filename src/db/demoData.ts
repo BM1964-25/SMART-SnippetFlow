@@ -1,4 +1,4 @@
-import type { LibraryEntry } from "@/types";
+import type { FieldOption, LibraryCategory, LibraryEntry } from "@/types";
 
 export const demoEntries: LibraryEntry[] = [
   {
@@ -40,11 +40,38 @@ export const demoEntries: LibraryEntry[] = [
     title: "Architektur-Notiz",
     description: "Kurze Markdown-Notiz für technische Entscheidungen.",
     content: "## Entscheidung\n\nSQLite bleibt lokal im Electron userData-Pfad.\n\n## Begründung\n\nUpdates sollen Nutzerdaten nicht überschreiben.",
-    tags: ["Architektur", "Lokal"],
-    categoryId: "architektur",
-    categoryName: "Architektur",
-    fieldValue: "Architektur",
+    tags: ["Dokumentation", "Lokal"],
+    categoryId: "dokumentation",
+    categoryName: "Dokumentation",
+    fieldValue: "Dokumentation",
     isFavorite: false,
     previewKind: "markdown",
   },
+];
+
+export const demoCategories: LibraryCategory[] = [
+  { id: "marketing", name: "Marketing", color: "#2563eb" },
+  { id: "vertrieb", name: "Vertrieb", color: "#059669" },
+  { id: "kundenservice", name: "Kundenservice", color: "#0891b2" },
+  { id: "produkt", name: "Produkt", color: "#7c3aed" },
+  { id: "entwicklung", name: "Entwicklung", color: "#0f766e" },
+  { id: "recherche", name: "Recherche", color: "#ca8a04" },
+  { id: "strategie", name: "Strategie", color: "#9333ea" },
+  { id: "dokumentation", name: "Dokumentation", color: "#475569" },
+  { id: "meeting", name: "Meeting", color: "#dc2626" },
+  { id: "privat", name: "Privat", color: "#db2777" },
+  { id: "allgemein", name: "Allgemein", color: "#64748b" },
+];
+
+export const demoFieldOptions: FieldOption[] = [
+  ..."Allgemein,OpenAI,ChatGPT,Codex,Claude,Gemini,Perplexity,Mistral,Llama,Lokales Modell"
+    .split(",")
+    .map((label, index) => ({
+      id: `prompt:${label.toLowerCase().replace(/\s+/g, "-")}`,
+      fieldKey: "prompt" as const,
+      value: label,
+      label,
+      isSystem: true,
+      sortOrder: index,
+    })),
 ];

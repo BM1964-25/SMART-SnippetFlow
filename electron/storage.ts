@@ -81,39 +81,39 @@ const starterEntries: LibraryEntry[] = [
     description: "Kurze Markdown-Notiz für technische Entscheidungen.",
     content:
       "## Entscheidung\n\nSQLite bleibt lokal im Electron userData-Pfad.\n\n## Begründung\n\nUpdates sollen Nutzerdaten nicht überschreiben.",
-    tags: ["Architektur", "Lokal"],
-    fieldValue: "Architektur",
-    categoryId: "architektur",
-    categoryName: "Architektur",
+    tags: ["Dokumentation", "Lokal"],
+    fieldValue: "Dokumentation",
+    categoryId: "dokumentation",
+    categoryName: "Dokumentation",
     isFavorite: false,
     previewKind: "markdown",
   },
 ];
 
 const systemFieldOptions: Array<Omit<FieldOption, "id">> = [
-  ...["Allgemein", "OpenAI", "Claude", "Gemini", "Codex", "Lokal", "Custom"].map((label, index) => ({
-    fieldKey: "aiSystem" as const,
+  ...["Allgemein", "OpenAI", "ChatGPT", "Codex", "Claude", "Gemini", "Perplexity", "Mistral", "Llama", "Lokales Modell"].map((label, index) => ({
+    fieldKey: "prompt" as const,
     value: label,
     label,
     isSystem: true,
     sortOrder: index,
   })),
   ...["TypeScript", "JavaScript", "HTML", "CSS", "Python", "SQL", "JSON", "Bash", "Markdown"].map((label, index) => ({
-    fieldKey: "language" as const,
-    value: label,
-    label,
-    isSystem: true,
-    sortOrder: index,
-  })),
-  ...["Content", "Software", "Marketing", "Analyse", "Meeting", "Vertrieb", "Projekt"].map((label, index) => ({
-    fieldKey: "workflowArea" as const,
+    fieldKey: "code" as const,
     value: label,
     label,
     isSystem: true,
     sortOrder: index,
   })),
   ...["Ideen", "Technik", "API", "Architektur", "Fehler", "Meetings", "Dokumentation", "Allgemein"].map((label, index) => ({
-    fieldKey: "noteCategory" as const,
+    fieldKey: "text" as const,
+    value: label,
+    label,
+    isSystem: true,
+    sortOrder: index,
+  })),
+  ...["Content", "Software", "Marketing", "Analyse", "Meeting", "Vertrieb", "Projekt"].map((label, index) => ({
+    fieldKey: "analysis" as const,
     value: label,
     label,
     isSystem: true,
@@ -122,13 +122,16 @@ const systemFieldOptions: Array<Omit<FieldOption, "id">> = [
 ];
 
 const starterCategories: LibraryCategory[] = [
-  { id: "ideen", name: "Ideen", color: "#2563eb" },
-  { id: "technik", name: "Technik", color: "#059669" },
-  { id: "api", name: "API", color: "#0891b2" },
-  { id: "architektur", name: "Architektur", color: "#7c3aed" },
-  { id: "fehler", name: "Fehler", color: "#dc2626" },
-  { id: "meetings", name: "Meetings", color: "#ca8a04" },
+  { id: "marketing", name: "Marketing", color: "#2563eb" },
+  { id: "vertrieb", name: "Vertrieb", color: "#059669" },
+  { id: "kundenservice", name: "Kundenservice", color: "#0891b2" },
+  { id: "produkt", name: "Produkt", color: "#7c3aed" },
+  { id: "entwicklung", name: "Entwicklung", color: "#0f766e" },
+  { id: "recherche", name: "Recherche", color: "#ca8a04" },
+  { id: "strategie", name: "Strategie", color: "#9333ea" },
   { id: "dokumentation", name: "Dokumentation", color: "#475569" },
+  { id: "meeting", name: "Meeting", color: "#dc2626" },
+  { id: "privat", name: "Privat", color: "#db2777" },
   { id: "allgemein", name: "Allgemein", color: "#64748b" },
 ];
 
@@ -213,6 +216,7 @@ export function initializeDatabase() {
 
   migrateEntryTypeConstraint();
   migrateEntryFieldValue();
+  migrateFieldOptionKeys();
   seedSystemFieldOptions();
   seedStarterCategories();
   seedStarterEntries();
@@ -348,6 +352,23 @@ export function saveCategory(name: string): LibraryCategory {
     .run(category);
 
   return category;
+}
+
+export function deleteCategory(id: string) {
+  const database = getDb();
+  const existing = database.prepare("SELECT id FROM categories WHERE id = ?").get(id) as Pick<LibraryCategory, "id"> | undefined;
+
+  if (!existing) {
+    return { id, deleted: false };
+  }
+
+  const write = database.transaction(() => {
+    database.prepare("UPDATE entries SET category_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE category_id = ?").run(id);
+    database.prepare("DELETE FROM categories WHERE id = ?").run(id);
+  });
+
+  write();
+  return { id, deleted: true };
 }
 
 export function listFieldOptions(): FieldOption[] {
@@ -558,8 +579,9 @@ export function importJsonPayload(content: string) {
 
   if (Array.isArray(parsed.fieldOptions)) {
     for (const option of parsed.fieldOptions) {
-      if (option?.fieldKey && option.label && !option.isSystem) {
-        createFieldOption(option.fieldKey, option.label);
+      const fieldKey = normalizeFieldOptionKey(option?.fieldKey);
+      if (fieldKey && option.label && !option.isSystem) {
+        createFieldOption(fieldKey, option.label);
       }
     }
   }
@@ -860,4 +882,53 @@ function migrateEntryFieldValue() {
        WHERE field_value IS NULL`,
     )
     .run();
+}
+
+function migrateFieldOptionKeys() {
+  const mappings: Array<[string, FieldOptionKey]> = [
+    ["aiSystem", "prompt"],
+    ["language", "code"],
+    ["noteCategory", "text"],
+    ["workflowArea", "analysis"],
+  ];
+  const database = getDb();
+  const migrate = database.transaction(() => {
+    for (const [legacyKey, fieldKey] of mappings) {
+      database
+        .prepare(
+          `DELETE FROM field_options
+           WHERE field_key = ?
+             AND EXISTS (
+               SELECT 1
+               FROM field_options target
+               WHERE target.field_key = ?
+                 AND target.value = field_options.value
+             )`,
+        )
+        .run(legacyKey, fieldKey);
+
+      database.prepare("UPDATE field_options SET field_key = ?, updated_at = CURRENT_TIMESTAMP WHERE field_key = ?").run(fieldKey, legacyKey);
+    }
+  });
+
+  migrate();
+}
+
+function normalizeFieldOptionKey(fieldKey: unknown): FieldOptionKey | null {
+  const legacyMap: Record<string, FieldOptionKey> = {
+    aiSystem: "prompt",
+    language: "code",
+    noteCategory: "text",
+    workflowArea: "analysis",
+  };
+
+  if (typeof fieldKey !== "string") {
+    return null;
+  }
+
+  if (["prompt", "code", "text", "analysis"].includes(fieldKey)) {
+    return fieldKey as FieldOptionKey;
+  }
+
+  return legacyMap[fieldKey] ?? null;
 }
