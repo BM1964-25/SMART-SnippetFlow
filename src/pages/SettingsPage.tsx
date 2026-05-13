@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Archive, Database, HardDrive, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { createBrowserExportPayload, importBrowserPayload, writeBrowserLicense } from "@/services/browserStorage";
 import type { LicenseState, LicenseStatus } from "@/types";
 
 const statusLabel: Record<LicenseStatus, string> = {
@@ -43,6 +44,7 @@ export function SettingsPage({
 }) {
   const [draft, setDraft] = useState(license);
   const [dataNotice, setDataNotice] = useState<string | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   async function handleSave() {
     const nextLicense: LicenseState = {
@@ -51,11 +53,28 @@ export function SettingsPage({
       expiresAt: draft.expiresAt || null,
     };
     const saved = (await window.snippetFlow?.license.save(nextLicense)) ?? nextLicense;
+    if (!window.snippetFlow) {
+      writeBrowserLicense(saved);
+    }
     onLicenseChange(saved);
     setDraft(saved);
   }
 
   async function handleExportJson() {
+    if (!window.snippetFlow) {
+      const payload = createBrowserExportPayload(draft);
+      const content = JSON.stringify(payload, null, 2);
+      const blob = new Blob([content], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `smart-snippetflow-export-${payload.createdAt.slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setDataNotice("JSON exportiert");
+      return;
+    }
+
     const result = await window.snippetFlow?.data.exportJson();
 
     if (!result || result.canceled) {
@@ -67,6 +86,11 @@ export function SettingsPage({
   }
 
   async function handleImportJson() {
+    if (!window.snippetFlow) {
+      importInputRef.current?.click();
+      return;
+    }
+
     const result = await window.snippetFlow?.data.importJson();
 
     if (!result || result.canceled) {
@@ -75,6 +99,25 @@ export function SettingsPage({
     }
 
     setDataNotice(`${result.importedEntries} Einträge und ${result.importedCategories} Kategorien importiert`);
+  }
+
+  async function handleBrowserImport(file: File | undefined) {
+    if (!file) {
+      return;
+    }
+
+    try {
+      const content = await file.text();
+      const result = importBrowserPayload(content);
+      setDataNotice(`${result.importedEntries} Einträge und ${result.importedCategories} Kategorien importiert. Seite wird neu geladen.`);
+      window.setTimeout(() => window.location.reload(), 900);
+    } catch {
+      setDataNotice("Import fehlgeschlagen: Die Datei konnte nicht gelesen werden.");
+    } finally {
+      if (importInputRef.current) {
+        importInputRef.current.value = "";
+      }
+    }
   }
 
   return (
@@ -159,6 +202,13 @@ export function SettingsPage({
               <div className="flex flex-wrap gap-3">
                 <Button onClick={handleExportJson}>JSON exportieren</Button>
                 <Button onClick={handleImportJson} variant="outline">JSON importieren</Button>
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  accept="application/json,.json"
+                  className="hidden"
+                  onChange={(event) => void handleBrowserImport(event.target.files?.[0])}
+                />
               </div>
             </div>
           </div>

@@ -1,26 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { EntryType, FieldOption, LibraryCategory, LibraryEntry, LibraryEntryInput } from "@/types";
 import { demoCategories, demoEntries, demoFieldOptions } from "@/db/demoData";
-
-const localStorageKeys = {
-  entries: "smart-snippetflow:entries",
-  categories: "smart-snippetflow:categories",
-  fieldOptions: "smart-snippetflow:field-options",
-};
+import { browserStorageKeys, readBrowserList, writeBrowserList } from "@/services/browserStorage";
 
 export function useLibraryEntries(activeType: EntryType | "all", query: string) {
-  const [entries, setEntries] = useState<LibraryEntry[]>(() => readLocalList(localStorageKeys.entries, demoEntries));
-  const [categories, setCategories] = useState<LibraryCategory[]>(() => readLocalList(localStorageKeys.categories, demoCategories));
-  const [fieldOptions, setFieldOptions] = useState<FieldOption[]>(() => readLocalList(localStorageKeys.fieldOptions, demoFieldOptions));
+  const [entries, setEntries] = useState<LibraryEntry[]>(() => readBrowserList(browserStorageKeys.entries, demoEntries));
+  const [categories, setCategories] = useState<LibraryCategory[]>(() => readBrowserList(browserStorageKeys.categories, demoCategories));
+  const [fieldOptions, setFieldOptions] = useState<FieldOption[]>(() => readBrowserList(browserStorageKeys.fieldOptions, demoFieldOptions));
   const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(() => {
     setIsLoading(true);
 
     if (!window.snippetFlow) {
-      setEntries(readLocalList(localStorageKeys.entries, demoEntries));
-      setCategories(readLocalList(localStorageKeys.categories, demoCategories));
-      setFieldOptions(readLocalList(localStorageKeys.fieldOptions, demoFieldOptions));
+      setEntries(readBrowserList(browserStorageKeys.entries, demoEntries));
+      setCategories(readBrowserList(browserStorageKeys.categories, demoCategories));
+      setFieldOptions(readBrowserList(browserStorageKeys.fieldOptions, demoFieldOptions));
       setIsLoading(false);
       return Promise.resolve();
     }
@@ -56,7 +51,7 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
       const localEntry: LibraryEntry = { ...entry, id: entry.id ?? crypto.randomUUID() };
       setEntries((current) => {
         const next = [localEntry, ...current.filter((item) => item.id !== localEntry.id)];
-        writeLocalList(localStorageKeys.entries, next);
+        writeBrowserList(browserStorageKeys.entries, next);
         return next;
       });
       return localEntry;
@@ -82,7 +77,7 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
       };
       setEntries((current) => {
         const next = [duplicated, ...current];
-        writeLocalList(localStorageKeys.entries, next);
+        writeBrowserList(browserStorageKeys.entries, next);
         return next;
       });
       return duplicated;
@@ -107,7 +102,7 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
       const updated = { ...target, isFavorite: !target.isFavorite };
       setEntries((current) => {
         const next = current.map((entry) => (entry.id === id ? updated : entry));
-        writeLocalList(localStorageKeys.entries, next);
+        writeBrowserList(browserStorageKeys.entries, next);
         return next;
       });
       return updated;
@@ -127,7 +122,7 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
     setEntries((current) => {
       const next = current.filter((entry) => entry.id !== id);
       if (!window.snippetFlow) {
-        writeLocalList(localStorageKeys.entries, next);
+        writeBrowserList(browserStorageKeys.entries, next);
       }
       return next;
     });
@@ -144,7 +139,7 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
     const localCategory = { id: slugify(name), name };
     setCategories((current) => {
       const next = [localCategory, ...current.filter((category) => category.id !== localCategory.id)];
-      writeLocalList(localStorageKeys.categories, next);
+      writeBrowserList(browserStorageKeys.categories, next);
       return next;
     });
     return localCategory;
@@ -157,7 +152,7 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
       setCategories((current) => {
         const next = current.filter((category) => category.id !== id);
         if (!window.snippetFlow) {
-          writeLocalList(localStorageKeys.categories, next);
+          writeBrowserList(browserStorageKeys.categories, next);
         }
         return next;
       });
@@ -166,7 +161,7 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
           entry.categoryId === id ? { ...entry, categoryId: undefined, categoryName: undefined } : entry,
         );
         if (!window.snippetFlow) {
-          writeLocalList(localStorageKeys.entries, next);
+          writeBrowserList(browserStorageKeys.entries, next);
         }
         return next;
       });
@@ -193,7 +188,7 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
     };
     setFieldOptions((current) => {
       const next = [...current, localOption];
-      writeLocalList(localStorageKeys.fieldOptions, next);
+      writeBrowserList(browserStorageKeys.fieldOptions, next);
       return next;
     });
     return localOption;
@@ -231,27 +226,6 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
     createFieldOption,
     refresh,
   };
-}
-
-function readLocalList<T>(key: string, fallback: T[]) {
-  if (typeof window === "undefined") {
-    return fallback;
-  }
-
-  try {
-    const stored = window.localStorage.getItem(key);
-    return stored ? (JSON.parse(stored) as T[]) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function writeLocalList<T>(key: string, value: T[]) {
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // Local preview persistence is best-effort; Electron persists through SQLite.
-  }
 }
 
 function slugify(value: string) {
