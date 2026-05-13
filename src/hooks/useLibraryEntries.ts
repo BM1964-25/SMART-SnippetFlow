@@ -2,18 +2,33 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { EntryType, FieldOption, LibraryCategory, LibraryEntry, LibraryEntryInput } from "@/types";
 import { demoCategories, demoEntries, demoFieldOptions } from "@/db/demoData";
 
+const localStorageKeys = {
+  entries: "smart-snippetflow:entries",
+  categories: "smart-snippetflow:categories",
+  fieldOptions: "smart-snippetflow:field-options",
+};
+
 export function useLibraryEntries(activeType: EntryType | "all", query: string) {
-  const [entries, setEntries] = useState<LibraryEntry[]>(demoEntries);
-  const [categories, setCategories] = useState<LibraryCategory[]>(demoCategories);
-  const [fieldOptions, setFieldOptions] = useState<FieldOption[]>(demoFieldOptions);
+  const [entries, setEntries] = useState<LibraryEntry[]>(() => readLocalList(localStorageKeys.entries, demoEntries));
+  const [categories, setCategories] = useState<LibraryCategory[]>(() => readLocalList(localStorageKeys.categories, demoCategories));
+  const [fieldOptions, setFieldOptions] = useState<FieldOption[]>(() => readLocalList(localStorageKeys.fieldOptions, demoFieldOptions));
   const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(() => {
     setIsLoading(true);
+
+    if (!window.snippetFlow) {
+      setEntries(readLocalList(localStorageKeys.entries, demoEntries));
+      setCategories(readLocalList(localStorageKeys.categories, demoCategories));
+      setFieldOptions(readLocalList(localStorageKeys.fieldOptions, demoFieldOptions));
+      setIsLoading(false);
+      return Promise.resolve();
+    }
+
     return Promise.all([
-      window.snippetFlow?.library.list() ?? Promise.resolve(demoEntries),
-      window.snippetFlow?.categories.list() ?? Promise.resolve(demoCategories),
-      window.snippetFlow?.fieldOptions.list() ?? Promise.resolve(demoFieldOptions),
+      window.snippetFlow.library.list(),
+      window.snippetFlow.categories.list(),
+      window.snippetFlow.fieldOptions.list(),
     ])
       .then(([storedEntries, storedCategories, storedFieldOptions]) => {
         if (storedEntries.length > 0) {
@@ -39,7 +54,11 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
   const saveEntry = useCallback(async (entry: LibraryEntryInput) => {
     if (!window.snippetFlow) {
       const localEntry: LibraryEntry = { ...entry, id: entry.id ?? crypto.randomUUID() };
-      setEntries((current) => [localEntry, ...current.filter((item) => item.id !== localEntry.id)]);
+      setEntries((current) => {
+        const next = [localEntry, ...current.filter((item) => item.id !== localEntry.id)];
+        writeLocalList(localStorageKeys.entries, next);
+        return next;
+      });
       return localEntry;
     }
 
@@ -49,6 +68,26 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
   }, []);
 
   const duplicateEntry = useCallback(async (id: string) => {
+    if (!window.snippetFlow) {
+      const source = entries.find((entry) => entry.id === id);
+      if (!source) {
+        return null;
+      }
+
+      const duplicated: LibraryEntry = {
+        ...source,
+        id: crypto.randomUUID(),
+        title: `${source.title} Kopie`,
+        isFavorite: false,
+      };
+      setEntries((current) => {
+        const next = [duplicated, ...current];
+        writeLocalList(localStorageKeys.entries, next);
+        return next;
+      });
+      return duplicated;
+    }
+
     const duplicated = await window.snippetFlow?.library.duplicate(id);
 
     if (duplicated) {
@@ -56,9 +95,24 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
     }
 
     return duplicated ?? null;
-  }, []);
+  }, [entries]);
 
   const toggleFavorite = useCallback(async (id: string) => {
+    if (!window.snippetFlow) {
+      const target = entries.find((entry) => entry.id === id);
+      if (!target) {
+        return null;
+      }
+
+      const updated = { ...target, isFavorite: !target.isFavorite };
+      setEntries((current) => {
+        const next = current.map((entry) => (entry.id === id ? updated : entry));
+        writeLocalList(localStorageKeys.entries, next);
+        return next;
+      });
+      return updated;
+    }
+
     const updated = await window.snippetFlow?.library.toggleFavorite(id);
 
     if (updated) {
@@ -66,11 +120,17 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
     }
 
     return updated ?? null;
-  }, []);
+  }, [entries]);
 
   const deleteEntry = useCallback(async (id: string) => {
     await window.snippetFlow?.library.delete(id);
-    setEntries((current) => current.filter((entry) => entry.id !== id));
+    setEntries((current) => {
+      const next = current.filter((entry) => entry.id !== id);
+      if (!window.snippetFlow) {
+        writeLocalList(localStorageKeys.entries, next);
+      }
+      return next;
+    });
   }, []);
 
   const saveCategory = useCallback(async (name: string) => {
@@ -81,8 +141,12 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
       return saved;
     }
 
-    const localCategory = { id: name.toLowerCase(), name };
-    setCategories((current) => [localCategory, ...current]);
+    const localCategory = { id: slugify(name), name };
+    setCategories((current) => {
+      const next = [localCategory, ...current.filter((category) => category.id !== localCategory.id)];
+      writeLocalList(localStorageKeys.categories, next);
+      return next;
+    });
     return localCategory;
   }, []);
 
@@ -90,12 +154,22 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
     const result = await window.snippetFlow?.categories.delete(id);
 
     if (!window.snippetFlow || result?.deleted) {
-      setCategories((current) => current.filter((category) => category.id !== id));
-      setEntries((current) =>
-        current.map((entry) =>
+      setCategories((current) => {
+        const next = current.filter((category) => category.id !== id);
+        if (!window.snippetFlow) {
+          writeLocalList(localStorageKeys.categories, next);
+        }
+        return next;
+      });
+      setEntries((current) => {
+        const next = current.map((entry) =>
           entry.categoryId === id ? { ...entry, categoryId: undefined, categoryName: undefined } : entry,
-        ),
-      );
+        );
+        if (!window.snippetFlow) {
+          writeLocalList(localStorageKeys.entries, next);
+        }
+        return next;
+      });
     }
 
     return result ?? { id, deleted: true };
@@ -117,7 +191,11 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
       isSystem: false,
       sortOrder: fieldOptions.length + 1,
     };
-    setFieldOptions((current) => [...current, localOption]);
+    setFieldOptions((current) => {
+      const next = [...current, localOption];
+      writeLocalList(localStorageKeys.fieldOptions, next);
+      return next;
+    });
     return localOption;
   }, [fieldOptions.length]);
 
@@ -153,4 +231,33 @@ export function useLibraryEntries(activeType: EntryType | "all", query: string) 
     createFieldOption,
     refresh,
   };
+}
+
+function readLocalList<T>(key: string, fallback: T[]) {
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+
+  try {
+    const stored = window.localStorage.getItem(key);
+    return stored ? (JSON.parse(stored) as T[]) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeLocalList<T>(key: string, value: T[]) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Local preview persistence is best-effort; Electron persists through SQLite.
+  }
+}
+
+function slugify(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9äöüß]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
