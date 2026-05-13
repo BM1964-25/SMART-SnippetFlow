@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type SelectHTMLAttributes } from "react";
 import Editor from "@monaco-editor/react";
 import { ALargeSmall, Bold, ChevronDown, ChevronRight, ChevronUp, Copy, FilePlus2, Heart, List, ListOrdered, Plus, RotateCcw, Save, Search, Star, Trash2, Undo2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -87,8 +87,8 @@ export function LibraryPage({
   const [pendingSelectionId, setPendingSelectionId] = useState<string | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<LibraryEntry | null>(null);
   const [entryRenderLimit, setEntryRenderLimit] = useState(entryRenderBatchSize);
-  const [isRecentOpen, setIsRecentOpen] = useState(true);
-  const [isFavoritesOpen, setIsFavoritesOpen] = useState(true);
+  const [isRecentOpen, setIsRecentOpen] = useState(false);
+  const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
   const [isTagCloudOpen, setIsTagCloudOpen] = useState(false);
   const { categories, fieldOptions, filteredEntries, entries, isLoading, saveEntry, duplicateEntry, toggleFavorite, deleteEntry, saveCategory, deleteCategory, createFieldOption } =
     useLibraryEntries(activeType, query);
@@ -450,10 +450,9 @@ export function LibraryPage({
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Titel, Kategorie oder Tag suchen" className="pl-9" />
             </div>
-            <select
+            <SelectControl
               value={categoryFilter}
               onChange={(event) => setCategoryFilter(event.target.value)}
-              className="h-10 rounded-md border border-border bg-background px-2 text-sm outline-none"
             >
               <option value="all">Alle Kategorien</option>
               {categoryOptions.map((category) => (
@@ -461,11 +460,10 @@ export function LibraryPage({
                   {category.name}
                 </option>
               ))}
-            </select>
-            <select
+            </SelectControl>
+            <SelectControl
               value={tagFilter}
               onChange={(event) => setTagFilter(event.target.value)}
-              className="h-10 rounded-md border border-border bg-background px-2 text-sm outline-none"
             >
               <option value="all">Alle Tags</option>
               {availableTags.map((tag) => (
@@ -473,7 +471,7 @@ export function LibraryPage({
                   {tag}
                 </option>
               ))}
-            </select>
+            </SelectControl>
             <Button
               onClick={resetListFilters}
               variant="outline"
@@ -500,14 +498,14 @@ export function LibraryPage({
                 </button>
               ))}
             </div>
-            <select
+            <SelectControl
               value={sortMode}
               onChange={(event) => setSortMode(event.target.value as "recent" | "title")}
-              className="h-8 rounded-md border border-border bg-background px-2 text-sm outline-none"
+              className="h-8 w-40"
             >
               <option value="recent">Zuletzt bearbeitet</option>
               <option value="title">Titel A-Z</option>
-            </select>
+            </SelectControl>
           </div>
         </header>
 
@@ -647,13 +645,13 @@ export function LibraryPage({
               <div className={cn("grid gap-3", shouldShowPreview ? "grid-cols-3" : showAiSystemField ? "grid-cols-2" : "grid-cols-1")}>
                 <label className="grid gap-1 text-xs font-medium text-muted-foreground">
                   Kategorie
-                  <select
+                  <SelectControl
                     value={draft.categoryId ?? ""}
                     onChange={(event) => {
                       const category = categoryOptions.find((item) => item.id === event.target.value);
                       setDraft({ ...draft, categoryId: category?.id, categoryName: category?.name });
                     }}
-                    className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none"
+                    className="h-9"
                   >
                     <option value="">Ohne Kategorie</option>
                     {categoryOptions.map((category) => (
@@ -661,15 +659,15 @@ export function LibraryPage({
                         {category.name}
                       </option>
                     ))}
-                  </select>
+                  </SelectControl>
                 </label>
                 {showAiSystemField && (
                   <label className="grid gap-1 text-xs font-medium text-muted-foreground">
                     {activeFieldLabel}
-                    <select
+                    <SelectControl
                       value={draft.fieldValue ?? ""}
                       onChange={(event) => void handleFieldValueChange(event.target.value)}
-                      className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none"
+                      className="h-9"
                     >
                       <option value="">Nicht gesetzt</option>
                     {activeFieldOptions.map((option) => (
@@ -677,18 +675,18 @@ export function LibraryPage({
                         {option.label}
                       </option>
                     ))}
-                  </select>
+                  </SelectControl>
                 </label>
                 )}
                 {shouldShowPreview && (
                   <label className="grid gap-1 text-xs font-medium text-muted-foreground">
                     {previewLabel}
-                    <select
+                    <SelectControl
                       value={draft.previewKind ?? ""}
                       onChange={(event) =>
                         setDraft({ ...draft, previewKind: (event.target.value || undefined) as PreviewKind | undefined })
                       }
-                      className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none"
+                      className="h-9"
                     >
                       <option value="">Keine Preview</option>
                       {previewOptions.map((option) => (
@@ -696,7 +694,7 @@ export function LibraryPage({
                           {option.label}
                         </option>
                       ))}
-                    </select>
+                    </SelectControl>
                   </label>
                 )}
               </div>
@@ -749,7 +747,7 @@ export function LibraryPage({
                     aria-label="Tag-Cloud"
                   >
                     <span>Tag-Cloud</span>
-                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <span className="ml-auto flex items-center gap-1 text-[11px] text-muted-foreground">
                       {tagCloudOptions.length}
                       {isTagCloudOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </span>
@@ -1060,6 +1058,23 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
   );
 }
 
+function SelectControl({ className, children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <div className="relative">
+      <select
+        {...props}
+        className={cn(
+          "h-10 w-full appearance-none rounded-md border border-border bg-background px-3 pr-9 text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/15",
+          className,
+        )}
+      >
+        {children}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+    </div>
+  );
+}
+
 function DashboardList({
   title,
   entries,
@@ -1075,9 +1090,9 @@ function DashboardList({
 }) {
   return (
     <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
-      <button type="button" onClick={onToggle} className="flex w-full items-center justify-between gap-3 text-left">
+      <button type="button" onClick={onToggle} className="flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left hover:bg-muted">
         <span className="text-[13px] font-semibold">{title}</span>
-        <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
+        <span className="ml-auto flex items-center gap-1 text-[11px] text-muted-foreground">
           {entries.length}
           {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </span>

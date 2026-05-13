@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { Blocks, Code2, Heart, Library, NotebookText, PanelLeftClose, PanelLeftOpen, Settings, Workflow } from "lucide-react";
+import { Code2, Heart, Library, NotebookText, PanelLeftClose, PanelLeftOpen, Settings, Workflow } from "lucide-react";
+import appLogo from "@/assets/app-logo.png";
 import type { AppView, LicenseStatus } from "@/types";
 import { cn } from "@/utils/cn";
 
@@ -41,11 +42,11 @@ export function AppShell({
         )}
       >
         <div className={cn("mb-8 flex items-center gap-3 px-2", isCollapsed && "justify-center px-0")}>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Blocks className="h-4 w-4" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-background">
+            <img src={appLogo} alt="SMART SnippetFlow" className="h-full w-full object-contain" />
           </div>
           <div className={cn("min-w-0", isCollapsed && "hidden")}>
-            <p className="text-sm font-semibold">SMART SnippetFlow</p>
+            <p className="text-base font-semibold">SMART SnippetFlow</p>
             <p className="text-xs text-muted-foreground">Lokale Bibliothek</p>
           </div>
         </div>
