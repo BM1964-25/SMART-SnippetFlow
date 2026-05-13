@@ -34,22 +34,57 @@ export function createSandboxPreviewHtml(preview: PreviewDescriptor | null) {
 }
 
 function markdownToHtml(source: string) {
-  return source
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      if (line.startsWith("# ")) {
-        return `<h1>${escapeHtml(line.slice(2))}</h1>`;
-      }
+  const html: string[] = [];
+  let listType: "ul" | "ol" | null = null;
+  const closeList = () => {
+    if (listType) {
+      html.push(`</${listType}>`);
+      listType = null;
+    }
+  };
 
-      if (/^\\d+\\.\\s/.test(line)) {
-        return `<p>${escapeHtml(line)}</p>`;
-      }
+  source.split("\n").forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) {
+      closeList();
+      return;
+    }
 
-      return `<p>${escapeHtml(line)}</p>`;
-    })
-    .join("");
+    const bulletMatch = /^[-*]\s+(.+)$/.exec(line);
+    const numberedMatch = /^\d+\.\s+(.+)$/.exec(line);
+
+    if (bulletMatch || numberedMatch) {
+      const nextListType = bulletMatch ? "ul" : "ol";
+      if (listType !== nextListType) {
+        closeList();
+        html.push(`<${nextListType}>`);
+        listType = nextListType;
+      }
+      html.push(`<li>${formatInlineMarkdown((bulletMatch ?? numberedMatch)?.[1] ?? "")}</li>`);
+      return;
+    }
+
+    closeList();
+
+    if (line.startsWith("## ")) {
+      html.push(`<h2>${formatInlineMarkdown(line.slice(3))}</h2>`);
+      return;
+    }
+
+    if (line.startsWith("# ")) {
+      html.push(`<h1>${formatInlineMarkdown(line.slice(2))}</h1>`);
+      return;
+    }
+
+    html.push(`<p>${formatInlineMarkdown(line)}</p>`);
+  });
+
+  closeList();
+  return html.join("");
+}
+
+function formatInlineMarkdown(value: string) {
+  return escapeHtml(value).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 }
 
 function escapeHtml(value: string) {

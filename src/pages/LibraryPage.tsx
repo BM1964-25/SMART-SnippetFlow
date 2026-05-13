@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
-import { Copy, FilePlus2, Heart, RotateCcw, Save, Search, Star, Trash2, X } from "lucide-react";
+import { Bold, Copy, FilePlus2, Heart, List, ListOrdered, RotateCcw, Save, Search, Star, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -778,6 +778,8 @@ export function LibraryPage({
 }
 
 function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; onChange: (content: string) => void; onCopy: () => void }) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
   if (entry.type === "code") {
     return (
       <div className="relative min-h-0 overflow-hidden rounded-lg border border-border bg-background">
@@ -798,7 +800,7 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
           onChange={(value) => onChange(value ?? "")}
           options={{
             minimap: { enabled: false },
-            fontSize: 13,
+            fontSize: 12,
             fontFamily: "JetBrains Mono, SFMono-Regular, Menlo, monospace",
             lineNumbers: "on",
             scrollBeyondLastLine: false,
@@ -814,21 +816,76 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
   const editorCopy: Record<Exclude<EntryType, "code">, { placeholder: string; className: string }> = {
     prompt: {
       placeholder: "Prompts-Inhalt eingeben...",
-      className: "text-[15px] leading-7",
+      className: "text-[13px] leading-6",
     },
     workflow: {
       placeholder: "Beschreibe die Schritte dieses Workflows...",
-      className: "text-[15px] leading-7",
+      className: "text-[13px] leading-6",
     },
     note: {
       placeholder: "Schreibe deine Markdown-Notiz...",
-      className: "font-serif text-base leading-8",
+      className: "text-[13px] leading-6",
     },
   };
   const copy = editorCopy[entry.type];
+  const applyMarkdown = (kind: "bold" | "bullet" | "numbered") => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    const { selectionStart, selectionEnd, value } = textarea;
+    const selected = value.slice(selectionStart, selectionEnd);
+    const fallback = kind === "bold" ? "Text" : "Punkt";
+    const text = selected || fallback;
+    const replacement =
+      kind === "bold"
+        ? `**${text}**`
+        : text
+            .split("\n")
+            .map((line, index) => `${kind === "bullet" ? "-" : `${index + 1}.`} ${line || fallback}`)
+            .join("\n");
+    const nextContent = `${value.slice(0, selectionStart)}${replacement}${value.slice(selectionEnd)}`;
+    const nextCursor = selectionStart + replacement.length;
+
+    onChange(nextContent);
+    window.requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(nextCursor, nextCursor);
+    });
+  };
 
   return (
     <div className="relative min-h-0 overflow-hidden rounded-lg border border-border bg-background">
+      <div className="absolute left-3 top-3 z-10 flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => applyMarkdown("bold")}
+          title="Fett formatieren"
+          aria-label="Fett formatieren"
+          className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
+        >
+          <Bold className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => applyMarkdown("bullet")}
+          title="Aufzählung einfügen"
+          aria-label="Aufzählung einfügen"
+          className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
+        >
+          <List className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => applyMarkdown("numbered")}
+          title="Nummerierte Liste einfügen"
+          aria-label="Nummerierte Liste einfügen"
+          className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
+        >
+          <ListOrdered className="h-4 w-4" />
+        </button>
+      </div>
       <button
         type="button"
         onClick={onCopy}
@@ -839,12 +896,13 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
         <Copy className="h-4 w-4" />
       </button>
       <textarea
+        ref={textareaRef}
         value={entry.content}
         onChange={(event) => onChange(event.target.value)}
         placeholder={copy.placeholder}
         spellCheck
         className={cn(
-          "h-full w-full resize-none bg-transparent px-6 py-5 pr-14 text-foreground outline-none placeholder:text-muted-foreground",
+          "h-full w-full resize-none bg-transparent px-6 pb-5 pt-14 pr-14 text-foreground outline-none placeholder:text-muted-foreground",
           copy.className,
         )}
       />
