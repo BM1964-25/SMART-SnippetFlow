@@ -1,12 +1,15 @@
 import { demoCategories, demoEntries, demoFieldOptions } from "@/db/demoData";
-import type { AppSetting, FieldOption, LibraryCategory, LibraryEntry, LicenseState } from "@/types";
+import type { AppSetting, EntryType, FieldOption, LibraryCategory, LibraryEntry, LicenseState } from "@/types";
 
 export const browserStorageKeys = {
   entries: "smart-snippetflow:entries",
   categories: "smart-snippetflow:categories",
   fieldOptions: "smart-snippetflow:field-options",
   license: "smart-snippetflow:license",
+  backup: "smart-snippetflow:auto-backup",
 };
+
+const estimatedLocalStorageLimitBytes = 5 * 1024 * 1024;
 
 export function readBrowserList<T>(key: string, fallback: T[]) {
   if (typeof window === "undefined") {
@@ -24,8 +27,11 @@ export function readBrowserList<T>(key: string, fallback: T[]) {
 export function writeBrowserList<T>(key: string, value: T[]) {
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
+    writeBrowserAutoBackup();
+    return true;
   } catch {
     // Browser preview persistence is best-effort; Electron persists through SQLite.
+    return false;
   }
 }
 
@@ -45,13 +51,17 @@ export function readBrowserLicense(fallback: LicenseState): LicenseState {
 export function writeBrowserLicense(value: LicenseState) {
   try {
     window.localStorage.setItem(browserStorageKeys.license, JSON.stringify(value));
+    writeBrowserAutoBackup();
+    return true;
   } catch {
     // Browser preview persistence is best-effort; Electron persists through SQLite.
+    return false;
   }
 }
 
-export function createBrowserExportPayload(license: LicenseState) {
+export function createBrowserExportPayload(license: LicenseState, entryType: EntryType | "all" = "all") {
   const createdAt = new Date().toISOString();
+  const entries = readBrowserList<LibraryEntry>(browserStorageKeys.entries, demoEntries);
 
   return {
     app: "SMART SnippetFlow",
@@ -60,7 +70,8 @@ export function createBrowserExportPayload(license: LicenseState) {
       storage: "browser-localStorage",
       fileName: null,
     },
-    entries: readBrowserList<LibraryEntry>(browserStorageKeys.entries, demoEntries),
+    exportScope: entryType,
+    entries: entryType === "all" ? entries : entries.filter((entry) => entry.type === entryType),
     categories: readBrowserList<LibraryCategory>(browserStorageKeys.categories, demoCategories),
     fieldOptions: readBrowserList<FieldOption>(browserStorageKeys.fieldOptions, demoFieldOptions),
     settings: [] as AppSetting[],
@@ -102,4 +113,59 @@ export function importBrowserPayload(content: string) {
     importedEntries: entries.length,
     importedCategories: categories.length,
   };
+}
+
+export function getBrowserStorageReport() {
+  if (typeof window === "undefined") {
+    return {
+      usedBytes: 0,
+      estimatedLimitBytes: estimatedLocalStorageLimitBytes,
+      usageRatio: 0,
+      isNearLimit: false,
+      backupCreatedAt: null as string | null,
+    };
+  }
+
+  let usedBytes = 0;
+  Object.values(browserStorageKeys).forEach((key) => {
+    const value = window.localStorage.getItem(key);
+    if (value) {
+      usedBytes += new Blob([key, value]).size;
+    }
+  });
+
+  const backup = readBrowserAutoBackup();
+  const usageRatio = usedBytes / estimatedLocalStorageLimitBytes;
+
+  return {
+    usedBytes,
+    estimatedLimitBytes: estimatedLocalStorageLimitBytes,
+    usageRatio,
+    isNearLimit: usageRatio >= 0.8,
+    backupCreatedAt: backup?.createdAt ?? null,
+  };
+}
+
+function writeBrowserAutoBackup() {
+  try {
+    const backup = {
+      createdAt: new Date().toISOString(),
+      entries: readBrowserList<LibraryEntry>(browserStorageKeys.entries, demoEntries),
+      categories: readBrowserList<LibraryCategory>(browserStorageKeys.categories, demoCategories),
+      fieldOptions: readBrowserList<FieldOption>(browserStorageKeys.fieldOptions, demoFieldOptions),
+      license: readBrowserLicense({ key: "", status: "invalid", expiresAt: null }),
+    };
+    window.localStorage.setItem(browserStorageKeys.backup, JSON.stringify(backup));
+  } catch {
+    // The explicit JSON export remains the reliable backup if browser storage is full.
+  }
+}
+
+function readBrowserAutoBackup() {
+  try {
+    const stored = window.localStorage.getItem(browserStorageKeys.backup);
+    return stored ? (JSON.parse(stored) as { createdAt?: string }) : null;
+  } catch {
+    return null;
+  }
 }

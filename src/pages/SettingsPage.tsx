@@ -3,8 +3,8 @@ import { Archive, Database, HardDrive, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createBrowserExportPayload, importBrowserPayload, writeBrowserLicense } from "@/services/browserStorage";
-import type { LicenseState, LicenseStatus } from "@/types";
+import { createBrowserExportPayload, getBrowserStorageReport, importBrowserPayload, writeBrowserLicense } from "@/services/browserStorage";
+import type { AppSetting, EntryType, FieldOption, LibraryCategory, LibraryEntry, LicenseState, LicenseStatus } from "@/types";
 
 const statusLabel: Record<LicenseStatus, string> = {
   active: "Aktiv",
@@ -15,7 +15,7 @@ const statusLabel: Record<LicenseStatus, string> = {
 const dataManagementItems = [
   {
     title: "Lokale Speicherung",
-    description: "Deine Bibliothek liegt als SQLite-Datenbank auf diesem Rechner im App-Datenverzeichnis.",
+    description: "Desktop: SQLite im App-Datenverzeichnis. Browser-Vorschau: localStorage dieser Website.",
     icon: HardDrive,
   },
   {
@@ -25,7 +25,7 @@ const dataManagementItems = [
   },
   {
     title: "Exportumfang",
-    description: "Der JSON-Export enthält die gesamte Bibliothek, unabhängig vom gerade geöffneten Bereich.",
+    description: "Der JSON-Export kann die gesamte Bibliothek oder gezielt einen Bereich enthalten.",
     icon: Archive,
   },
   {
@@ -33,6 +33,14 @@ const dataManagementItems = [
     description: "Es gibt keine automatische Cloud-Synchronisierung und keine automatische Datenübertragung.",
     icon: ShieldCheck,
   },
+];
+
+const exportScopeOptions: Array<{ label: string; value: EntryType | "all" }> = [
+  { label: "Gesamte Bibliothek", value: "all" },
+  { label: "Nur Prompts", value: "prompt" },
+  { label: "Nur Code", value: "code" },
+  { label: "Nur Workflows", value: "workflow" },
+  { label: "Nur Notizen", value: "note" },
 ];
 
 export function SettingsPage({
@@ -44,7 +52,10 @@ export function SettingsPage({
 }) {
   const [draft, setDraft] = useState(license);
   const [dataNotice, setDataNotice] = useState<string | null>(null);
+  const [exportScope, setExportScope] = useState<EntryType | "all">("all");
+  const [storageReport, setStorageReport] = useState(() => getBrowserStorageReport());
   const importInputRef = useRef<HTMLInputElement>(null);
+  const isBrowserPreview = !window.snippetFlow;
 
   async function handleSave() {
     const nextLicense: LicenseState = {
@@ -61,7 +72,7 @@ export function SettingsPage({
   }
 
   async function handleExportJson() {
-    if (window.snippetFlow?.data?.exportJson) {
+    if (exportScope === "all" && window.snippetFlow?.data?.exportJson) {
       const result = await window.snippetFlow.data.exportJson();
 
       if (result?.canceled) {
@@ -75,7 +86,7 @@ export function SettingsPage({
       }
     }
 
-    exportBrowserJson();
+    await exportRendererJson(exportScope);
   }
 
   async function handleImportJson() {
@@ -96,17 +107,18 @@ export function SettingsPage({
     importInputRef.current?.click();
   }
 
-  function exportBrowserJson() {
-    const payload = createBrowserExportPayload(draft);
+  async function exportRendererJson(scope: EntryType | "all") {
+    const payload = await createRendererExportPayload(draft, scope);
     const content = JSON.stringify(payload, null, 2);
     const blob = new Blob([content], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `smart-snippetflow-export-${payload.createdAt.slice(0, 10)}.json`;
+    link.download = `smart-snippetflow-${scope === "all" ? "export" : scope}-${payload.createdAt.slice(0, 10)}.json`;
     link.click();
     URL.revokeObjectURL(url);
-    setDataNotice("JSON exportiert");
+    setStorageReport(getBrowserStorageReport());
+    setDataNotice(scope === "all" ? "JSON exportiert" : `JSON exportiert: ${scopeLabel(scope)}`);
   }
 
   async function handleBrowserImport(file: File | undefined) {
@@ -117,6 +129,7 @@ export function SettingsPage({
     try {
       const content = await file.text();
       const result = importBrowserPayload(content);
+      setStorageReport(getBrowserStorageReport());
       setDataNotice(`${result.importedEntries} Einträge und ${result.importedCategories} Kategorien importiert. Seite wird neu geladen.`);
       window.setTimeout(() => window.location.reload(), 900);
     } catch {
@@ -199,15 +212,54 @@ export function SettingsPage({
             ))}
           </div>
 
+          <div className="mt-5 rounded-lg border border-border bg-background p-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-semibold">Speicherstatus</h3>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  {isBrowserPreview
+                    ? `${formatBytes(storageReport.usedBytes)} von ca. ${formatBytes(storageReport.estimatedLimitBytes)} Browser-Speicher genutzt.`
+                    : "Die Desktop-App speichert in SQLite; die praktische Grenze ist der freie Speicherplatz auf deinem Rechner."}
+                </p>
+                {isBrowserPreview && storageReport.backupCreatedAt && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Automatischer Sicherungspunkt: {new Date(storageReport.backupCreatedAt).toLocaleString("de-DE")}
+                  </p>
+                )}
+              </div>
+              {isBrowserPreview && (
+                <Badge className={storageReport.isNearLimit ? "border-amber-200 bg-amber-50 text-amber-700" : undefined}>
+                  {Math.round(storageReport.usageRatio * 100)}%
+                </Badge>
+              )}
+            </div>
+            {isBrowserPreview && storageReport.isNearLimit && (
+              <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                Der Browser-Speicher nähert sich der Grenze. Erstelle bitte einen JSON-Export, bevor du weitere große Inhalte speicherst.
+              </p>
+            )}
+          </div>
+
           <div className="mt-6 rounded-lg border border-dashed border-border bg-background p-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h3 className="text-sm font-semibold">Manuelle Sicherung</h3>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  JSON eignet sich für Backups und den späteren Umzug auf ein anderes System.
+                  JSON eignet sich für Backups, Bereichsexporte und den späteren Umzug auf ein anderes System.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
+                <select
+                  value={exportScope}
+                  onChange={(event) => setExportScope(event.target.value as EntryType | "all")}
+                  className="h-10 rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/15"
+                >
+                  {exportScopeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
                 <Button onClick={handleExportJson}>JSON exportieren</Button>
                 <Button onClick={handleImportJson} variant="outline">JSON importieren</Button>
                 <input
@@ -226,4 +278,56 @@ export function SettingsPage({
       </div>
     </div>
   );
+}
+
+async function createRendererExportPayload(license: LicenseState, scope: EntryType | "all") {
+  if (!window.snippetFlow) {
+    return createBrowserExportPayload(license, scope);
+  }
+
+  const [entries, categories, fieldOptions] = await Promise.all([
+    window.snippetFlow.library.list(),
+    window.snippetFlow.categories.list(),
+    window.snippetFlow.fieldOptions.list(),
+  ]);
+  const createdAt = new Date().toISOString();
+
+  return {
+    app: "SMART SnippetFlow",
+    createdAt,
+    database: {
+      storage: "electron-sqlite",
+      fileName: null,
+    },
+    exportScope: scope,
+    entries: scope === "all" ? entries : entries.filter((entry: LibraryEntry) => entry.type === scope),
+    categories: categories as LibraryCategory[],
+    fieldOptions: fieldOptions as FieldOption[],
+    settings: [] as AppSetting[],
+    license,
+  };
+}
+
+function scopeLabel(scope: EntryType | "all") {
+  const labels: Record<EntryType | "all", string> = {
+    all: "Gesamte Bibliothek",
+    prompt: "Prompts",
+    code: "Code",
+    workflow: "Workflows",
+    note: "Notizen",
+  };
+
+  return labels[scope];
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }

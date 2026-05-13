@@ -17,6 +17,8 @@ const filters: Array<{ label: string; value: EntryType | "all" }> = [
   { label: "Notizen", value: "note" },
 ];
 
+const entryRenderBatchSize = 80;
+
 const typeLabel: Record<EntryType, string> = {
   prompt: "Prompts",
   code: "Code",
@@ -84,6 +86,7 @@ export function LibraryPage({
   const [tagInput, setTagInput] = useState("");
   const [pendingSelectionId, setPendingSelectionId] = useState<string | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<LibraryEntry | null>(null);
+  const [entryRenderLimit, setEntryRenderLimit] = useState(entryRenderBatchSize);
   const { categories, fieldOptions, filteredEntries, entries, isLoading, saveEntry, duplicateEntry, toggleFavorite, deleteEntry, saveCategory, deleteCategory, createFieldOption } =
     useLibraryEntries(activeType, query);
 
@@ -122,6 +125,8 @@ export function LibraryPage({
 
     return sortEntries(narrowedEntries, sortMode);
   }, [activeView, narrowedEntries, sortMode]);
+  const renderedEntries = visibleEntries.slice(0, entryRenderLimit);
+  const hasMoreEntries = renderedEntries.length < visibleEntries.length;
 
   const selectedEntry = useMemo(() => {
     return entries.find((entry) => entry.id === selectedId) ?? visibleEntries[0] ?? entries[0];
@@ -140,6 +145,10 @@ export function LibraryPage({
     setCategoryFilter("all");
     setTagFilter("all");
   }, [activeView]);
+
+  useEffect(() => {
+    setEntryRenderLimit(entryRenderBatchSize);
+  }, [activeType, categoryFilter, query, sortMode, tagFilter]);
 
   useEffect(() => {
     if (selectedEntry) {
@@ -408,9 +417,9 @@ export function LibraryPage({
   }
 
   return (
-    <div className="grid h-screen grid-cols-[minmax(360px,0.82fr)_minmax(520px,1.18fr)] overflow-hidden">
-      <section className="flex min-w-0 flex-col border-r border-border bg-background">
-        <header className="border-b border-border px-8 pb-5 pt-8">
+    <div className="grid h-full min-h-0 grid-cols-[minmax(360px,0.82fr)_minmax(520px,1.18fr)] overflow-hidden">
+      <section className="flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-border bg-background">
+        <header className="shrink-0 border-b border-border px-8 pb-5 pt-8">
           <div className="flex items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-semibold tracking-normal">{viewTitle[activeView]}</h1>
@@ -479,21 +488,21 @@ export function LibraryPage({
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-8 py-5">
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
           {activeView === "all" && (
-            <div className="mb-5 grid gap-4">
-              <div className="grid grid-cols-5 gap-3">
+            <div className="mb-4 grid gap-3">
+              <div className="grid grid-cols-5 gap-2">
                 {dashboardStats.map((stat) => (
                   <div
                     key={stat.label}
-                    className="flex min-h-24 flex-col items-center justify-center rounded-lg border border-border bg-card p-4 text-center shadow-sm"
+                    className="flex min-h-20 flex-col items-center justify-center rounded-lg border border-border bg-card p-3 text-center shadow-sm"
                   >
-                    <p className="text-xs text-muted-foreground">{stat.label}</p>
-                    <p className="mt-2 text-2xl font-semibold">{stat.value}</p>
+                    <p className="text-[11px] text-muted-foreground">{stat.label}</p>
+                    <p className="mt-1 text-xl font-semibold">{stat.value}</p>
                   </div>
                 ))}
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <DashboardList title="Zuletzt bearbeitet" entries={recentEntries} onSelect={handleSelectEntry} />
                 <DashboardList title="Favoriten" entries={favoriteEntries} onSelect={handleSelectEntry} />
               </div>
@@ -505,42 +514,51 @@ export function LibraryPage({
               Keine Einträge gefunden.
             </div>
           )}
-          <div className="grid gap-3">
-            {visibleEntries.map((entry) => (
+          <div className="grid gap-2">
+            {renderedEntries.map((entry) => (
               <button
                 key={entry.id}
                 onClick={() => handleSelectEntry(entry.id)}
                 className={cn(
-                  "rounded-lg border border-border bg-card p-4 text-left shadow-sm transition-colors hover:border-ring",
+                  "rounded-lg border border-border bg-card px-3 py-3 text-left shadow-sm transition-colors hover:border-ring",
                   draft?.id === entry.id && "border-ring",
                 )}
               >
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Badge>{typeLabel[entry.type]}</Badge>
-                      {entry.fieldValue && <Badge>{entry.fieldValue}</Badge>}
-                      {entry.categoryName && <Badge>{entry.categoryName}</Badge>}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge className="px-1.5 py-0 text-[11px]">{typeLabel[entry.type]}</Badge>
+                      {entry.fieldValue && <Badge className="px-1.5 py-0 text-[11px]">{entry.fieldValue}</Badge>}
+                      {entry.categoryName && <Badge className="px-1.5 py-0 text-[11px]">{entry.categoryName}</Badge>}
                       {entry.isFavorite && <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />}
                     </div>
-                    <h2 className="mt-3 truncate text-sm font-semibold">{entry.title}</h2>
-                    <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{entry.description || "Keine Beschreibung"}</p>
+                    <h2 className="mt-2 truncate text-[13px] font-semibold">{entry.title}</h2>
+                    <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{entry.description || "Keine Beschreibung"}</p>
                   </div>
                 </div>
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-2 flex flex-wrap gap-1.5">
                   {entry.tags.map((tag) => (
-                    <Badge key={tag}>{tag}</Badge>
+                    <Badge key={tag} className="px-1.5 py-0 text-[11px]">{tag}</Badge>
                   ))}
                 </div>
               </button>
             ))}
+            {hasMoreEntries && (
+              <Button
+                onClick={() => setEntryRenderLimit((current) => current + entryRenderBatchSize)}
+                variant="outline"
+                className="justify-center"
+              >
+                Weitere Einträge anzeigen ({visibleEntries.length - renderedEntries.length})
+              </Button>
+            )}
           </div>
         </div>
       </section>
 
       {draft && (
-        <section className="flex min-w-0 flex-col bg-card">
-          <header className="border-b border-border px-8 pb-6 pt-8">
+        <section className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-card">
+          <header className="shrink-0 border-b border-border px-8 pb-6 pt-8">
             <div className="flex items-start justify-between gap-5">
               <div className="min-w-0 flex-1">
                 <div className="flex min-h-5 items-center gap-2">
@@ -920,18 +938,18 @@ function DashboardList({
   onSelect: (id: string) => void;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <p className="text-sm font-medium">{title}</p>
-      <div className="mt-3 grid gap-2">
-        {entries.length === 0 && <p className="text-sm text-muted-foreground">Noch keine Einträge.</p>}
+    <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
+      <p className="text-[13px] font-semibold">{title}</p>
+      <div className="mt-2 grid gap-1">
+        {entries.length === 0 && <p className="text-xs text-muted-foreground">Noch keine Einträge.</p>}
         {entries.map((entry) => (
           <button
             key={entry.id}
             onClick={() => onSelect(entry.id)}
-            className="rounded-md px-2 py-2 text-left hover:bg-muted"
+            className="rounded-md px-2 py-1.5 text-left hover:bg-muted"
           >
-            <p className="truncate text-sm font-medium">{entry.title}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{typeLabel[entry.type]}</p>
+            <p className="truncate text-xs font-semibold">{entry.title}</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{typeLabel[entry.type]}</p>
           </button>
         ))}
       </div>
