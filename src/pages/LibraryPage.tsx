@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
-import { ALargeSmall, Bold, Copy, FilePlus2, Heart, List, ListOrdered, RotateCcw, Save, Search, Star, Trash2, Undo2, X } from "lucide-react";
+import { ALargeSmall, Bold, ChevronDown, ChevronRight, Copy, FilePlus2, Heart, List, ListOrdered, RotateCcw, Save, Search, Star, Trash2, Undo2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,7 @@ const typeLabel: Record<EntryType, string> = {
 };
 
 const editorTitle: Record<EntryType, string> = {
-  prompt: "Prompts",
+  prompt: "Prompt",
   code: "Code",
   workflow: "Workflows",
   note: "Notizen",
@@ -87,6 +87,9 @@ export function LibraryPage({
   const [pendingSelectionId, setPendingSelectionId] = useState<string | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<LibraryEntry | null>(null);
   const [entryRenderLimit, setEntryRenderLimit] = useState(entryRenderBatchSize);
+  const [isRecentOpen, setIsRecentOpen] = useState(true);
+  const [isFavoritesOpen, setIsFavoritesOpen] = useState(true);
+  const [isTagCloudOpen, setIsTagCloudOpen] = useState(false);
   const { categories, fieldOptions, filteredEntries, entries, isLoading, saveEntry, duplicateEntry, toggleFavorite, deleteEntry, saveCategory, deleteCategory, createFieldOption } =
     useLibraryEntries(activeType, query);
 
@@ -179,6 +182,7 @@ export function LibraryPage({
         .filter((tag) => tag.toLowerCase().includes(tagInput.trim().toLowerCase()))
         .slice(0, 6)
     : [];
+  const tagCloudOptions = draft ? availableTags.filter((tag) => !draft.tags.includes(tag)).slice(0, 32) : [];
   const dashboardStats = useMemo(() => createDashboardStats(entries), [entries]);
   const recentEntries = entries.slice(0, 5);
   const favoriteEntries = entries.filter((entry) => entry.isFavorite).slice(0, 5);
@@ -521,9 +525,21 @@ export function LibraryPage({
                   </div>
                 ))}
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <DashboardList title="Zuletzt bearbeitet" entries={recentEntries} onSelect={handleSelectEntry} />
-                <DashboardList title="Favoriten" entries={favoriteEntries} onSelect={handleSelectEntry} />
+              <div className="grid gap-2">
+                <DashboardList
+                  title="Zuletzt bearbeitet"
+                  entries={recentEntries}
+                  isOpen={isRecentOpen}
+                  onToggle={() => setIsRecentOpen((current) => !current)}
+                  onSelect={handleSelectEntry}
+                />
+                <DashboardList
+                  title="Favoriten"
+                  entries={favoriteEntries}
+                  isOpen={isFavoritesOpen}
+                  onToggle={() => setIsFavoritesOpen((current) => !current)}
+                  onSelect={handleSelectEntry}
+                />
               </div>
             </div>
           )}
@@ -753,6 +769,40 @@ export function LibraryPage({
                     </Badge>
                   ))}
                   {draft.categoryName && <Badge>{draft.categoryName}</Badge>}
+                </div>
+
+                <div className="rounded-md border border-border bg-card">
+                  <button
+                    type="button"
+                    onClick={() => setIsTagCloudOpen((current) => !current)}
+                    className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
+                  >
+                    <span className="text-xs font-semibold text-foreground">Tag-Cloud</span>
+                    <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      {tagCloudOptions.length}
+                      {isTagCloudOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </span>
+                  </button>
+                  {isTagCloudOpen && (
+                    <div className="border-t border-border px-3 py-2">
+                      {tagCloudOptions.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">Keine weiteren bestehenden Tags.</p>
+                      ) : (
+                        <div className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto">
+                          {tagCloudOptions.map((tag) => (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => handleApplyTag(tag)}
+                              className="rounded-sm border border-border bg-background px-2 py-1 text-xs text-foreground hover:bg-muted"
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1009,28 +1059,40 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
 function DashboardList({
   title,
   entries,
+  isOpen,
+  onToggle,
   onSelect,
 }: {
   title: string;
   entries: LibraryEntry[];
+  isOpen: boolean;
+  onToggle: () => void;
   onSelect: (id: string) => void;
 }) {
   return (
     <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
-      <p className="text-[13px] font-semibold">{title}</p>
-      <div className="mt-2 grid gap-1">
-        {entries.length === 0 && <p className="text-xs text-muted-foreground">Noch keine Einträge.</p>}
-        {entries.map((entry) => (
-          <button
-            key={entry.id}
-            onClick={() => onSelect(entry.id)}
-            className="rounded-md px-2 py-1.5 text-left hover:bg-muted"
-          >
-            <p className="truncate text-xs font-semibold">{entry.title}</p>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">{typeLabel[entry.type]}</p>
-          </button>
-        ))}
-      </div>
+      <button type="button" onClick={onToggle} className="flex w-full items-center justify-between gap-3 text-left">
+        <span className="text-[13px] font-semibold">{title}</span>
+        <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          {entries.length}
+          {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </span>
+      </button>
+      {isOpen && (
+        <div className="mt-2 grid gap-1">
+          {entries.length === 0 && <p className="px-2 py-1 text-xs text-muted-foreground">Noch keine Einträge.</p>}
+          {entries.map((entry) => (
+            <button
+              key={entry.id}
+              onClick={() => onSelect(entry.id)}
+              className="rounded-md px-2 py-1.5 text-left hover:bg-muted"
+            >
+              <p className="truncate text-xs font-semibold">{entry.title}</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{typeLabel[entry.type]}</p>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
