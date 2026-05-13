@@ -52,8 +52,8 @@ export function SettingsPage({
       status: draft.key.trim().length >= 8 ? draft.status : "invalid",
       expiresAt: draft.expiresAt || null,
     };
-    const saved = (await window.snippetFlow?.license.save(nextLicense)) ?? nextLicense;
-    if (!window.snippetFlow) {
+    const saved = (await window.snippetFlow?.license?.save(nextLicense)) ?? nextLicense;
+    if (!window.snippetFlow?.license?.save) {
       writeBrowserLicense(saved);
     }
     onLicenseChange(saved);
@@ -61,44 +61,52 @@ export function SettingsPage({
   }
 
   async function handleExportJson() {
-    if (!window.snippetFlow) {
-      const payload = createBrowserExportPayload(draft);
-      const content = JSON.stringify(payload, null, 2);
-      const blob = new Blob([content], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `smart-snippetflow-export-${payload.createdAt.slice(0, 10)}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
-      setDataNotice("JSON exportiert");
-      return;
+    if (window.snippetFlow?.data?.exportJson) {
+      const result = await window.snippetFlow.data.exportJson();
+
+      if (result?.canceled) {
+        setDataNotice("Export abgebrochen");
+        return;
+      }
+
+      if (result) {
+        setDataNotice(`JSON exportiert: ${result.filePath}`);
+        return;
+      }
     }
 
-    const result = await window.snippetFlow?.data.exportJson();
-
-    if (!result || result.canceled) {
-      setDataNotice("Export abgebrochen");
-      return;
-    }
-
-    setDataNotice(`JSON exportiert: ${result.filePath}`);
+    exportBrowserJson();
   }
 
   async function handleImportJson() {
-    if (!window.snippetFlow) {
-      importInputRef.current?.click();
-      return;
+    if (window.snippetFlow?.data?.importJson) {
+      const result = await window.snippetFlow.data.importJson();
+
+      if (result?.canceled) {
+        setDataNotice("Import abgebrochen");
+        return;
+      }
+
+      if (result) {
+        setDataNotice(`${result.importedEntries} Einträge und ${result.importedCategories} Kategorien importiert`);
+        return;
+      }
     }
 
-    const result = await window.snippetFlow?.data.importJson();
+    importInputRef.current?.click();
+  }
 
-    if (!result || result.canceled) {
-      setDataNotice("Import abgebrochen");
-      return;
-    }
-
-    setDataNotice(`${result.importedEntries} Einträge und ${result.importedCategories} Kategorien importiert`);
+  function exportBrowserJson() {
+    const payload = createBrowserExportPayload(draft);
+    const content = JSON.stringify(payload, null, 2);
+    const blob = new Blob([content], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `smart-snippetflow-export-${payload.createdAt.slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setDataNotice("JSON exportiert");
   }
 
   async function handleBrowserImport(file: File | undefined) {
