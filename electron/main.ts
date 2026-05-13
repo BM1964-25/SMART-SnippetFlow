@@ -53,7 +53,7 @@ function createWindow() {
   if (isDev) {
     void mainWindow.loadURL("http://127.0.0.1:5173");
   } else {
-    void mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
+    void mainWindow.loadFile(path.join(__dirname, "../../dist/index.html"));
   }
 }
 
