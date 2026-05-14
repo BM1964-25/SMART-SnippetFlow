@@ -1,7 +1,10 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type {
+  AiConnectionTestResult,
   JsonExportResult,
   JsonImportResult,
+  AiPromptAnalysisRequest,
+  AiPromptAnalysisResult,
   FieldOption,
   FieldOptionKey,
   LibraryCategory,
@@ -41,6 +44,10 @@ const api = {
   data: {
     exportJson: (): Promise<JsonExportResult> => ipcRenderer.invoke("export:json"),
     importJson: (): Promise<JsonImportResult> => ipcRenderer.invoke("import:json"),
+  },
+  ai: {
+    analyzePrompt: (request: AiPromptAnalysisRequest): Promise<AiPromptAnalysisResult> => ipcRenderer.invoke("ai:analyze-prompt", request),
+    testConnection: (): Promise<AiConnectionTestResult> => ipcRenderer.invoke("ai:test-connection"),
   },
 };
 

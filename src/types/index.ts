@@ -5,6 +5,16 @@ export type AppView = "all" | "prompts" | "code" | "workflows" | "notes" | "favo
 export type ExportFormat = "json" | "markdown" | "txt";
 export type FieldOptionKey = "prompt" | "code" | "text" | "analysis";
 
+export interface PromptVariant {
+  id: string;
+  label: string;
+  content: string;
+  note?: string;
+  rating?: "good" | "medium" | "weak";
+  createdAt: string;
+  source: "manual" | "ai";
+}
+
 export interface LibraryEntry {
   id: string;
   type: EntryType;
@@ -18,6 +28,7 @@ export interface LibraryEntry {
   tags: string[];
   isFavorite: boolean;
   previewKind?: PreviewKind;
+  promptVariants?: PromptVariant[];
 }
 
 export type LibraryEntryInput = Omit<LibraryEntry, "id"> & {
@@ -82,4 +93,34 @@ export interface PreviewDescriptor {
   kind: PreviewKind;
   source: string;
   sandboxed: true;
+}
+
+export interface AiPromptAnalysisRequest {
+  prompt: string;
+  existingTags: string[];
+  existingCategories: string[];
+  variantCount?: number;
+}
+
+export interface AiPromptAnalysisResult {
+  title: string;
+  description: string;
+  tags: string[];
+  categoryName?: string;
+  variants: Array<{
+    label: string;
+    content: string;
+    note?: string;
+  }>;
+}
+
+export interface AiConnectionTestResult {
+  ok: boolean;
+  message: string;
+  model?: string;
+}
+
+export interface AiSettings {
+  anthropicApiKey: string;
+  anthropicModel: string;
 }

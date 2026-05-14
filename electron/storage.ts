@@ -12,6 +12,7 @@ import type {
   LibraryEntry,
   LibraryEntryInput,
   LicenseState,
+  PromptVariant,
 } from "../src/types/index.js";
 
 let db: Database.Database | null = null;
@@ -31,6 +32,12 @@ type EntryRow = Omit<LibraryEntry, "isFavorite" | "tags"> & {
 type TagRow = {
   entryId: string;
   name: string;
+};
+
+type PromptVariantRow = Omit<PromptVariant, "createdAt"> & {
+  entryId: string;
+  createdAt: string;
+  sortOrder: number;
 };
 
 const starterEntries: LibraryEntry[] = [
@@ -212,6 +219,20 @@ export function initializeDatabase() {
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(field_key, value)
     );
+
+    CREATE TABLE IF NOT EXISTS prompt_variants (
+      id TEXT PRIMARY KEY,
+      entry_id TEXT NOT NULL,
+      label TEXT NOT NULL,
+      content TEXT NOT NULL,
+      note TEXT,
+      rating TEXT CHECK (rating IN ('good', 'medium', 'weak')),
+      source TEXT NOT NULL CHECK (source IN ('manual', 'ai')),
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (entry_id) REFERENCES entries(id) ON DELETE CASCADE
+    );
   `);
 
   migrateEntryTypeConstraint();
@@ -257,6 +278,37 @@ export function listEntries(): LibraryEntry[] {
     return acc;
   }, {});
 
+  const variantRows = getDb()
+    .prepare(
+      `SELECT
+         id,
+         entry_id as entryId,
+         label,
+         content,
+         note,
+         rating,
+         source,
+         sort_order as sortOrder,
+         created_at as createdAt
+       FROM prompt_variants
+       ORDER BY sort_order ASC, created_at ASC`,
+    )
+    .all() as Array<PromptVariantRow & { note: string | null; rating: PromptVariant["rating"] | null }>;
+
+  const variantsByEntry = variantRows.reduce<Record<string, PromptVariant[]>>((acc, row) => {
+    const variant: PromptVariant = {
+      id: row.id,
+      label: row.label,
+      content: row.content,
+      note: row.note ?? undefined,
+      rating: row.rating ?? undefined,
+      source: row.source,
+      createdAt: row.createdAt,
+    };
+    acc[row.entryId] = [...(acc[row.entryId] ?? []), variant];
+    return acc;
+  }, {});
+
   return rows.map((row) => ({
     ...row,
     language: row.language ?? undefined,
@@ -266,6 +318,7 @@ export function listEntries(): LibraryEntry[] {
     previewKind: row.previewKind ?? undefined,
     isFavorite: Boolean(row.isFavorite),
     tags: tagsByEntry[row.id] ?? [],
+    promptVariants: row.type === "prompt" ? variantsByEntry[row.id] ?? [] : undefined,
   }));
 }
 
@@ -284,6 +337,7 @@ export function saveEntry(entry: LibraryEntryInput): LibraryEntry {
     tags: normalizeTags(entry.tags),
     isFavorite: entry.isFavorite,
     previewKind: entry.previewKind,
+    promptVariants: entry.type === "prompt" ? normalizePromptVariants(entry.promptVariants) : undefined,
   };
 
   const database = getDb();
@@ -319,6 +373,27 @@ export function saveEntry(entry: LibraryEntryInput): LibraryEntry {
       const tagId = slugify(tag);
       database.prepare("INSERT OR IGNORE INTO tags (id, name) VALUES (?, ?)").run(tagId, tag);
       database.prepare("INSERT OR IGNORE INTO entry_tags (entry_id, tag_id) VALUES (?, ?)").run(id, tagId);
+    }
+
+    database.prepare("DELETE FROM prompt_variants WHERE entry_id = ?").run(id);
+
+    for (const [index, variant] of (normalized.promptVariants ?? []).slice(0, 3).entries()) {
+      database
+        .prepare(
+          `INSERT INTO prompt_variants (id, entry_id, label, content, note, rating, source, sort_order, created_at, updated_at)
+           VALUES (@id, @entryId, @label, @content, @note, @rating, @source, @sortOrder, @createdAt, CURRENT_TIMESTAMP)`,
+        )
+        .run({
+          id: variant.id,
+          entryId: id,
+          label: variant.label,
+          content: variant.content,
+          note: variant.note ?? null,
+          rating: variant.rating ?? null,
+          source: variant.source,
+          sortOrder: index,
+          createdAt: variant.createdAt,
+        });
     }
   });
 
@@ -671,6 +746,25 @@ function seedSystemFieldOptions() {
 
 function normalizeTags(tags: string[]) {
   return [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))].slice(0, 12);
+}
+
+function normalizePromptVariants(variants: PromptVariant[] | undefined): PromptVariant[] {
+  if (!Array.isArray(variants)) {
+    return [];
+  }
+
+  return variants
+    .filter((variant) => variant?.content?.trim())
+    .slice(0, 3)
+    .map((variant, index) => ({
+      id: variant.id || crypto.randomUUID(),
+      label: variant.label?.trim() || `Variante ${index + 1}`,
+      content: variant.content,
+      note: variant.note?.trim() || undefined,
+      rating: variant.rating,
+      source: variant.source === "manual" ? "manual" : "ai",
+      createdAt: variant.createdAt || new Date().toISOString(),
+    }));
 }
 
 function slugify(value: string) {

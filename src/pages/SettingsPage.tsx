@@ -1,9 +1,16 @@
-import { useRef, useState } from "react";
-import { Archive, Database, HardDrive, ShieldCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Archive, Database, Eye, EyeOff, HardDrive, KeyRound, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createBrowserExportPayload, getBrowserStorageReport, importBrowserPayload, writeBrowserLicense } from "@/services/browserStorage";
+import {
+  createBrowserExportPayload,
+  getBrowserStorageReport,
+  importBrowserPayload,
+  readBrowserSetting,
+  writeBrowserLicense,
+  writeBrowserSetting,
+} from "@/services/browserStorage";
 import type { AppSetting, EntryType, FieldOption, LibraryCategory, LibraryEntry, LicenseState, LicenseStatus } from "@/types";
 
 const statusLabel: Record<LicenseStatus, string> = {
@@ -15,7 +22,7 @@ const statusLabel: Record<LicenseStatus, string> = {
 const dataManagementItems = [
   {
     title: "Lokale Speicherung",
-    description: "Desktop: SQLite im App-Datenverzeichnis. Browser-Vorschau: localStorage dieser Website.",
+    description: "Desktop: SQLite im App-Datenverzeichnis des jeweiligen Nutzers.",
     icon: HardDrive,
   },
   {
@@ -30,7 +37,7 @@ const dataManagementItems = [
   },
   {
     title: "Datenschutz",
-    description: "Es gibt keine automatische Cloud-Synchronisierung und keine automatische Datenübertragung.",
+    description: "Keine Cloud-Synchronisierung. KI-Anfragen werden nur nach aktivem Klick mit deinem API-Key gesendet.",
     icon: ShieldCheck,
   },
 ];
@@ -43,6 +50,8 @@ const exportScopeOptions: Array<{ label: string; value: EntryType | "all" }> = [
   { label: "Nur Notizen", value: "note" },
 ];
 
+const defaultAnthropicModel = "claude-sonnet-4-5-20250929";
+
 export function SettingsPage({
   license,
   onLicenseChange,
@@ -52,10 +61,38 @@ export function SettingsPage({
 }) {
   const [draft, setDraft] = useState(license);
   const [dataNotice, setDataNotice] = useState<string | null>(null);
+  const [aiNotice, setAiNotice] = useState<string | null>(null);
+  const [aiDraft, setAiDraft] = useState({
+    anthropicApiKey: "",
+  });
+  const [isApiKeyVisible, setIsApiKeyVisible] = useState(false);
+  const [isAiChecking, setIsAiChecking] = useState(false);
   const [exportScope, setExportScope] = useState<EntryType | "all">("all");
   const [storageReport, setStorageReport] = useState(() => getBrowserStorageReport());
   const importInputRef = useRef<HTMLInputElement>(null);
   const isBrowserPreview = !window.snippetFlow;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadAiSettings() {
+      const apiKey = await (window.snippetFlow?.settings?.get("anthropic_api_key") ?? Promise.resolve(readBrowserSetting("anthropic_api_key")));
+
+      if (!isMounted) {
+        return;
+      }
+
+      setAiDraft({
+        anthropicApiKey: apiKey ?? "",
+      });
+    }
+
+    void loadAiSettings();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   async function handleSave() {
     const nextLicense: LicenseState = {
@@ -69,6 +106,55 @@ export function SettingsPage({
     }
     onLicenseChange(saved);
     setDraft(saved);
+  }
+
+  async function saveAiSettings(apiKey: string, model: string) {
+    if (window.snippetFlow?.settings?.save) {
+      await Promise.all([
+        window.snippetFlow.settings.save("anthropic_api_key", apiKey),
+        window.snippetFlow.settings.save("anthropic_model", model),
+      ]);
+    } else {
+      writeBrowserSetting("anthropic_api_key", apiKey);
+      writeBrowserSetting("anthropic_model", model);
+    }
+  }
+
+  async function handleSaveAiSettings() {
+    const apiKey = aiDraft.anthropicApiKey.trim();
+
+    await saveAiSettings(apiKey, defaultAnthropicModel);
+
+    setAiDraft({ anthropicApiKey: apiKey });
+    setAiNotice("KI-Einstellungen gespeichert");
+    window.setTimeout(() => setAiNotice(null), 2200);
+  }
+
+  async function handleCheckAiConnection() {
+    const apiKey = aiDraft.anthropicApiKey.trim();
+    await saveAiSettings(apiKey, defaultAnthropicModel);
+    setAiDraft({ anthropicApiKey: apiKey });
+
+    if (!window.snippetFlow?.ai?.testConnection) {
+      setAiNotice("Verbindung kann nur in der Desktop-App geprüft werden.");
+      return;
+    }
+
+    setIsAiChecking(true);
+    setAiNotice("Verbindung wird geprüft...");
+
+    try {
+      const result = await window.snippetFlow.ai.testConnection();
+      setAiNotice(result.ok ? `${result.message} (${result.model})` : result.message);
+    } finally {
+      setIsAiChecking(false);
+    }
+  }
+
+  async function handleDisconnectAi() {
+    await saveAiSettings("", defaultAnthropicModel);
+    setAiDraft({ anthropicApiKey: "" });
+    setAiNotice("Verbindung getrennt. Der API-Key wurde lokal gelöscht.");
   }
 
   async function handleExportJson() {
@@ -189,6 +275,61 @@ export function SettingsPage({
         </section>
 
         <section className="mt-6 rounded-lg border border-border bg-card p-6 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-background">
+              <KeyRound className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold">KI-Anbindung</h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                Der Anthropic API-Key wird lokal gespeichert und nur verwendet, wenn du im Prompt-Editor aktiv KI-Vorschläge abrufst.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-4">
+            <label className="grid gap-2 text-sm font-medium">
+              Anthropic API-Key
+              <div className="relative">
+                <Input
+                  type={isApiKeyVisible ? "text" : "password"}
+                  value={aiDraft.anthropicApiKey}
+                  onChange={(event) => setAiDraft({ ...aiDraft, anthropicApiKey: event.target.value })}
+                  placeholder="sk-ant-..."
+                  autoComplete="off"
+                  className="pr-11"
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsApiKeyVisible((current) => !current)}
+                  className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                  title={isApiKeyVisible ? "API-Key ausblenden" : "API-Key anzeigen"}
+                  aria-label={isApiKeyVisible ? "API-Key ausblenden" : "API-Key anzeigen"}
+                >
+                  {isApiKeyVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </label>
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs leading-5 text-muted-foreground">
+              Für die Verkaufsversion sollte der Key verschlüsselt im Betriebssystem-Schlüsselbund gespeichert werden. Diese Version speichert ihn lokal in den App-Einstellungen.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={handleSaveAiSettings}>Speichern</Button>
+              <Button onClick={() => void handleCheckAiConnection()} variant="outline" disabled={isAiChecking}>
+                Verbindung überprüfen
+              </Button>
+              <Button onClick={() => void handleDisconnectAi()} variant="outline" className="text-rose-600 hover:text-rose-700">
+                Verbindung trennen
+              </Button>
+            </div>
+          </div>
+          {aiNotice && <p className="mt-3 text-sm text-muted-foreground">{aiNotice}</p>}
+        </section>
+
+        <section className="mt-6 rounded-lg border border-border bg-card p-6 shadow-sm">
           <div>
             <h2 className="text-base font-semibold">Datenmanagement</h2>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -210,6 +351,27 @@ export function SettingsPage({
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="mt-5 rounded-lg border border-border bg-background p-4">
+            <h3 className="text-sm font-semibold">Speicherorte</h3>
+            <div className="mt-3 grid gap-3 text-sm leading-6 text-muted-foreground">
+              <div>
+                <p className="font-medium text-foreground">Desktop-App</p>
+                <p>
+                  Inhalte werden lokal in einer SQLite-Datenbank im App-Datenverzeichnis des jeweiligen Nutzers gespeichert.
+                  Auf macOS liegt dieses Verzeichnis typischerweise unter <span className="font-mono text-xs">~/Library/Application Support/SMART SnippetFlow</span>,
+                  unter Windows unter <span className="font-mono text-xs">%APPDATA%\\SMART SnippetFlow</span>.
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-foreground">JSON-Dateien</p>
+                <p>
+                  Exporte werden standardmäßig im Downloads-Ordner des jeweiligen Nutzers abgelegt bzw. dort vorgeschlagen. In der Desktop-App kann
+                  der Speicherort im Dateidialog geändert werden.
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="mt-5 rounded-lg border border-border bg-background p-4">

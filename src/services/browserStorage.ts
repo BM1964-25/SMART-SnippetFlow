@@ -7,6 +7,7 @@ export const browserStorageKeys = {
   fieldOptions: "smart-snippetflow:field-options",
   license: "smart-snippetflow:license",
   backup: "smart-snippetflow:auto-backup",
+  aiSettings: "smart-snippetflow:ai-settings",
 };
 
 const estimatedLocalStorageLimitBytes = 5 * 1024 * 1024;
@@ -55,6 +56,24 @@ export function writeBrowserLicense(value: LicenseState) {
     return true;
   } catch {
     // Browser preview persistence is best-effort; Electron persists through SQLite.
+    return false;
+  }
+}
+
+export function readBrowserSetting(key: string) {
+  try {
+    return window.localStorage.getItem(`smart-snippetflow:setting:${key}`);
+  } catch {
+    return null;
+  }
+}
+
+export function writeBrowserSetting(key: string, value: string) {
+  try {
+    window.localStorage.setItem(`smart-snippetflow:setting:${key}`, value);
+    writeBrowserAutoBackup();
+    return true;
+  } catch {
     return false;
   }
 }

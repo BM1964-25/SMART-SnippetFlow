@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type SelectHTMLAttributes } from "react";
 import Editor from "@monaco-editor/react";
-import { ALargeSmall, Bold, ChevronDown, ChevronRight, ChevronUp, Copy, FilePlus2, Heart, List, ListOrdered, Plus, RotateCcw, Save, Search, Star, Trash2, Undo2, X } from "lucide-react";
+import { ALargeSmall, Bold, ChevronDown, ChevronRight, ChevronUp, Copy, FilePlus2, Heart, List, ListOrdered, Plus, RotateCcw, Save, Search, Sparkles, Star, Trash2, Undo2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLibraryEntries } from "@/hooks/useLibraryEntries";
 import { createPreviewDescriptor, createSandboxPreviewHtml } from "@/services/preview";
-import type { AppView, EntryType, FieldOptionKey, LibraryEntry, PreviewKind } from "@/types";
+import type { AiPromptAnalysisResult, AppView, EntryType, FieldOptionKey, LibraryEntry, PreviewKind, PromptVariant } from "@/types";
 import { cn } from "@/utils/cn";
 
 const filters: Array<{ label: string; value: EntryType | "all" }> = [
@@ -90,6 +90,9 @@ export function LibraryPage({
   const [isRecentOpen, setIsRecentOpen] = useState(false);
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
   const [isTagCloudOpen, setIsTagCloudOpen] = useState(false);
+  const [activePromptVersionId, setActivePromptVersionId] = useState<"original" | string>("original");
+  const [isAiBusy, setIsAiBusy] = useState(false);
+  const [aiNotice, setAiNotice] = useState<string | null>(null);
   const { categories, fieldOptions, filteredEntries, entries, isLoading, saveEntry, duplicateEntry, toggleFavorite, deleteEntry, saveCategory, deleteCategory, createFieldOption } =
     useLibraryEntries(activeType, query);
 
@@ -159,6 +162,8 @@ export function LibraryPage({
     if (selectedEntry) {
       setSelectedId(selectedEntry.id);
       setDraft(selectedEntry);
+      setActivePromptVersionId("original");
+      setAiNotice(null);
     }
   }, [selectedEntry?.id]);
 
@@ -186,6 +191,22 @@ export function LibraryPage({
   const dashboardStats = useMemo(() => createDashboardStats(entries), [entries]);
   const recentEntries = entries.slice(0, 5);
   const favoriteEntries = entries.filter((entry) => entry.isFavorite).slice(0, 5);
+  const promptVariants = draft?.type === "prompt" ? (draft.promptVariants ?? []) : [];
+  const activePromptVariant =
+    activePromptVersionId === "original" ? null : promptVariants.find((variant) => variant.id === activePromptVersionId) ?? null;
+  const contentEditorEntry =
+    draft && activePromptVariant
+      ? {
+          ...draft,
+          content: activePromptVariant.content,
+        }
+      : draft;
+
+  useEffect(() => {
+    if (activePromptVersionId !== "original" && !promptVariants.some((variant) => variant.id === activePromptVersionId)) {
+      setActivePromptVersionId("original");
+    }
+  }, [activePromptVersionId, promptVariants]);
 
   useEffect(() => {
     onDirtyChange(isDirty);
@@ -268,9 +289,190 @@ export function LibraryPage({
 
   async function handleCopy() {
     if (draft) {
-      await navigator.clipboard.writeText(draft.content);
+      await handleCopyContent(activePromptVariant?.content ?? draft.content);
+    }
+  }
+
+  async function handleCopyContent(content: string) {
+    if (content) {
+      await navigator.clipboard.writeText(content);
       showNotice("Inhalt kopiert");
     }
+  }
+
+  function showAiMessage(message: string) {
+    setAiNotice(message);
+    window.setTimeout(() => setAiNotice(null), 3600);
+  }
+
+  function updatePromptVariant(id: string, patch: Partial<PromptVariant>) {
+    if (!draft || draft.type !== "prompt") {
+      return;
+    }
+
+    setDraft({
+      ...draft,
+      promptVariants: (draft.promptVariants ?? []).map((variant) => (variant.id === id ? { ...variant, ...patch } : variant)),
+    });
+  }
+
+  function addManualPromptVariant() {
+    if (!draft || draft.type !== "prompt") {
+      return;
+    }
+
+    const variants = draft.promptVariants ?? [];
+    if (variants.length >= 3) {
+      showAiMessage("Maximal drei Varianten möglich");
+      return;
+    }
+
+    const nextVariant = createPromptVariant({
+      label: `Variante ${variants.length + 1}`,
+      content: draft.content,
+      note: "Manuelle Variante",
+      source: "manual",
+    });
+
+    setDraft({ ...draft, promptVariants: [...variants, nextVariant] });
+    setActivePromptVersionId(nextVariant.id);
+    showNotice("Variante erstellt");
+  }
+
+  function deletePromptVariant(id: string) {
+    if (!draft || draft.type !== "prompt") {
+      return;
+    }
+
+    setDraft({
+      ...draft,
+      promptVariants: (draft.promptVariants ?? []).filter((variant) => variant.id !== id),
+    });
+    setActivePromptVersionId("original");
+    showNotice("Variante gelöscht");
+  }
+
+  function promotePromptVariant(id: string) {
+    if (!draft || draft.type !== "prompt") {
+      return;
+    }
+
+    const variant = (draft.promptVariants ?? []).find((item) => item.id === id);
+    if (!variant) {
+      return;
+    }
+
+    setDraft({ ...draft, content: variant.content });
+    setActivePromptVersionId("original");
+    showNotice("Variante als Original übernommen");
+  }
+
+  async function handleAnalyzePrompt() {
+    await runPromptAiRequest("metadata");
+  }
+
+  async function handleCreateAiVariant() {
+    await runPromptAiRequest("variant");
+  }
+
+  async function runPromptAiRequest(mode: "metadata" | "variant") {
+    if (!draft || draft.type !== "prompt") {
+      return;
+    }
+
+    if (!draft.content.trim()) {
+      showAiMessage("Bitte zuerst einen Prompt-Inhalt eingeben");
+      return;
+    }
+
+    if (!window.snippetFlow?.ai?.analyzePrompt) {
+      showAiMessage("KI-Abfrage ist in der Browser-Vorschau nicht aktiv. Bitte Desktop-App nutzen.");
+      return;
+    }
+
+    const variants = draft.promptVariants ?? [];
+    if (mode === "variant" && variants.length >= 3) {
+      showAiMessage("Maximal drei Varianten möglich");
+      return;
+    }
+
+    setIsAiBusy(true);
+    setAiNotice(null);
+
+    try {
+      const result = await window.snippetFlow.ai.analyzePrompt({
+        prompt: draft.content,
+        existingTags: availableTags,
+        existingCategories: categoryOptions.map((category) => category.name),
+        variantCount: variants.length < 3 ? 1 : 0,
+      });
+
+      await applyAiPromptResult(result, mode);
+      showAiMessage(mode === "metadata" ? "KI-Vorschläge übernommen" : "KI-Variante erstellt");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "KI-Abfrage fehlgeschlagen";
+      showAiMessage(message);
+    } finally {
+      setIsAiBusy(false);
+    }
+  }
+
+  async function applyAiPromptResult(result: AiPromptAnalysisResult, mode: "metadata" | "variant") {
+    if (!draft || draft.type !== "prompt") {
+      return;
+    }
+
+    const currentVariants = draft.promptVariants ?? [];
+    const remainingSlots = Math.max(0, 3 - currentVariants.length);
+    const nextVariants =
+      remainingSlots > 0
+        ? [
+            ...currentVariants,
+            ...result.variants.slice(0, remainingSlots).map((variant, index) =>
+              createPromptVariant({
+                label: variant.label || `Variante ${currentVariants.length + index + 1}`,
+                content: variant.content,
+                note: variant.note,
+                source: "ai",
+              }),
+            ),
+          ]
+        : currentVariants;
+
+    const categoryPatch = await resolveAiCategoryPatch(result.categoryName);
+
+    if (mode === "metadata") {
+      setDraft({
+        ...draft,
+        title: result.title || draft.title,
+        description: result.description || draft.description,
+        tags: mergeTags(draft.tags, result.tags),
+        ...categoryPatch,
+        promptVariants: nextVariants,
+      });
+      return;
+    }
+
+    setDraft({ ...draft, promptVariants: nextVariants });
+    const addedVariant = nextVariants.at(-1);
+    if (addedVariant && addedVariant.id !== currentVariants.at(-1)?.id) {
+      setActivePromptVersionId(addedVariant.id);
+    }
+  }
+
+  async function resolveAiCategoryPatch(categoryName: string | undefined) {
+    const trimmed = categoryName?.trim();
+    if (!trimmed) {
+      return {};
+    }
+
+    const existing = categoryOptions.find((category) => category.name.toLowerCase() === trimmed.toLowerCase());
+    if (existing) {
+      return { categoryId: existing.id, categoryName: existing.name };
+    }
+
+    const category = await saveCategory(trimmed);
+    return { categoryId: category.id, categoryName: category.name };
   }
 
   async function handleDelete() {
@@ -806,6 +1008,31 @@ export function LibraryPage({
                     )}
                   </div>
                 )}
+
+                {draft.type === "prompt" && (
+                  <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                    <Button type="button" onClick={() => void handleAnalyzePrompt()} variant="outline" disabled={isAiBusy}>
+                      <Sparkles className="h-4 w-4" />
+                      KI vorschlagen
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => void handleCreateAiVariant()}
+                      variant="outline"
+                      disabled={isAiBusy || promptVariants.length >= 3}
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      KI-Variante
+                    </Button>
+                    <Button type="button" onClick={addManualPromptVariant} variant="outline" disabled={promptVariants.length >= 3}>
+                      <Plus className="h-4 w-4" />
+                      Leere Variante
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      {aiNotice ?? `${promptVariants.length}/3 Varianten`}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <label className="grid gap-1 text-xs font-medium text-muted-foreground">
@@ -824,13 +1051,94 @@ export function LibraryPage({
             "grid min-h-0 flex-1 gap-5 overflow-hidden px-8 py-6",
             shouldShowPreview ? "grid-rows-[minmax(0,1fr)_180px]" : "grid-rows-[minmax(0,1fr)]",
           )}>
-            <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-1">
-              <p className="text-xs font-medium text-muted-foreground">Inhalt</p>
-              <EntryContentEditor
-                entry={draft}
-                onChange={(content) => setDraft({ ...draft, content })}
-                onCopy={() => void handleCopy()}
-              />
+            <div
+              className={cn(
+                "grid min-h-0 gap-1",
+                activePromptVariant ? "grid-rows-[auto_auto_minmax(0,1fr)]" : "grid-rows-[auto_minmax(0,1fr)]",
+              )}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {activePromptVariant ? activePromptVariant.label : "Inhalt"}
+                  </p>
+                  {activePromptVariant?.note && <p className="mt-0.5 text-xs text-muted-foreground">{activePromptVariant.note}</p>}
+                </div>
+                {draft.type === "prompt" && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActivePromptVersionId("original")}
+                      className={cn(
+                        "h-8 rounded-md border border-border px-3 text-xs font-medium hover:bg-muted",
+                        activePromptVersionId === "original" && "border-ring bg-muted text-foreground",
+                      )}
+                    >
+                      Original
+                    </button>
+                    {promptVariants.map((variant, index) => (
+                      <button
+                        key={variant.id}
+                        type="button"
+                        onClick={() => setActivePromptVersionId(variant.id)}
+                        className={cn(
+                          "h-8 rounded-md border border-border px-3 text-xs font-medium hover:bg-muted",
+                          activePromptVersionId === variant.id && "border-ring bg-muted text-foreground",
+                        )}
+                      >
+                        {variant.label || `Variante ${index + 1}`}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {activePromptVariant && (
+                <div className="mb-2 grid grid-cols-[minmax(0,1fr)_140px_auto_auto] gap-2">
+                  <Input
+                    value={activePromptVariant.note ?? ""}
+                    onChange={(event) => updatePromptVariant(activePromptVariant.id, { note: event.target.value })}
+                    placeholder="Notiz zur Variante"
+                    className="h-9"
+                  />
+                  <SelectControl
+                    value={activePromptVariant.rating ?? ""}
+                    onChange={(event) =>
+                      updatePromptVariant(activePromptVariant.id, {
+                        rating: (event.target.value || undefined) as PromptVariant["rating"],
+                      })
+                    }
+                    className="h-9"
+                  >
+                    <option value="">Bewertung</option>
+                    <option value="good">Gut</option>
+                    <option value="medium">Mittel</option>
+                    <option value="weak">Schwach</option>
+                  </SelectControl>
+                  <Button type="button" onClick={() => promotePromptVariant(activePromptVariant.id)} variant="outline" className="h-9">
+                    Als Original
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => deletePromptVariant(activePromptVariant.id)}
+                    variant="outline"
+                    size="icon"
+                    title="Variante löschen"
+                    aria-label="Variante löschen"
+                    className="h-9 w-9 text-rose-600 hover:text-rose-700"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+              {contentEditorEntry && (
+                <EntryContentEditor
+                  entry={contentEditorEntry}
+                  onChange={(content) =>
+                    activePromptVariant ? updatePromptVariant(activePromptVariant.id, { content }) : setDraft({ ...draft, content })
+                  }
+                  onCopy={() => void handleCopy()}
+                />
+              )}
             </div>
 
             {shouldShowPreview && (
@@ -1149,6 +1457,34 @@ function ConfirmDialog({
   );
 }
 
+function createPromptVariant({
+  label,
+  content,
+  note,
+  source,
+}: {
+  label: string;
+  content: string;
+  note?: string;
+  source: PromptVariant["source"];
+}): PromptVariant {
+  return {
+    id: crypto.randomUUID(),
+    label,
+    content,
+    note,
+    source,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function mergeTags(existingTags: string[], suggestedTags: string[]) {
+  const normalized = [...existingTags, ...suggestedTags]
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+  return [...new Set(normalized)].slice(0, 12);
+}
+
 function sortEntries(entries: LibraryEntry[], sortMode: "recent" | "title") {
   if (sortMode === "title") {
     return [...entries].sort((a, b) => a.title.localeCompare(b.title));
@@ -1169,6 +1505,13 @@ function normalizeEntry(entry: LibraryEntry) {
     categoryName: entry.categoryName || undefined,
     previewKind: entry.previewKind || undefined,
     tags: entry.tags.map((tag) => tag.trim()).filter(Boolean),
+    promptVariants: (entry.promptVariants ?? []).map((variant) => ({
+      ...variant,
+      label: variant.label.trim(),
+      content: variant.content,
+      note: variant.note?.trim() || undefined,
+      rating: variant.rating || undefined,
+    })),
   };
 }
 

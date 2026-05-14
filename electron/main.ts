@@ -22,7 +22,7 @@ import {
   saveSetting,
   toggleFavorite,
 } from "./storage.js";
-import type { FieldOptionKey, LibraryEntryInput, LicenseState } from "../src/types/index.js";
+import type { AiConnectionTestResult, AiPromptAnalysisRequest, AiPromptAnalysisResult, FieldOptionKey, LibraryEntryInput, LicenseState } from "../src/types/index.js";
 
 const isDev = !app.isPackaged;
 
@@ -120,3 +120,130 @@ ipcMain.handle("import:json", async () => {
   const summary = importJsonPayload(content);
   return { canceled: false as const, filePath: result.filePaths[0], ...summary };
 });
+
+ipcMain.handle("ai:analyze-prompt", async (_event, request: AiPromptAnalysisRequest) => analyzePromptWithAnthropic(request));
+ipcMain.handle("ai:test-connection", async () => testAnthropicConnection());
+
+async function testAnthropicConnection(): Promise<AiConnectionTestResult> {
+  const apiKey = getSetting("anthropic_api_key")?.trim();
+  const model = getSetting("anthropic_model")?.trim() || "claude-sonnet-4-5-20250929";
+
+  if (!apiKey) {
+    return { ok: false, message: "Kein Anthropic API-Key gespeichert.", model };
+  }
+
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 12,
+        temperature: 0,
+        messages: [
+          {
+            role: "user",
+            content: "Antworte nur mit OK.",
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const message = await response.text();
+      return { ok: false, message: `Verbindung fehlgeschlagen: ${response.status} ${message}`, model };
+    }
+
+    return { ok: true, message: "Verbindung aktiv", model };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? `Verbindung fehlgeschlagen: ${error.message}` : "Verbindung fehlgeschlagen.",
+      model,
+    };
+  }
+}
+
+async function analyzePromptWithAnthropic(request: AiPromptAnalysisRequest): Promise<AiPromptAnalysisResult> {
+  const apiKey = getSetting("anthropic_api_key")?.trim();
+  const model = getSetting("anthropic_model")?.trim() || "claude-sonnet-4-5-20250929";
+
+  if (!apiKey) {
+    throw new Error("Kein Anthropic API-Key gespeichert.");
+  }
+
+  const variantCount = Math.max(0, Math.min(request.variantCount ?? 1, 3));
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 2500,
+      temperature: 0.4,
+      system:
+        "Du bist ein präziser deutschsprachiger Prompt-Editor. Antworte ausschließlich als valides JSON ohne Markdown-Codeblock.",
+      messages: [
+        {
+          role: "user",
+          content: [
+            "Analysiere diesen Prompt für eine lokale Prompt-Bibliothek.",
+            "Erstelle kurze, professionelle Metadaten und exakt die gewünschte Anzahl verbesserter Varianten.",
+            `Gewünschte Varianten: ${variantCount}`,
+            `Bestehende Tags: ${request.existingTags.join(", ") || "keine"}`,
+            `Bestehende Kategorien: ${request.existingCategories.join(", ") || "keine"}`,
+            "JSON-Schema:",
+            '{"title":"...","description":"...","tags":["..."],"categoryName":"...","variants":[{"label":"Variante 1","content":"...","note":"..."}]}',
+            "Prompt:",
+            request.prompt,
+          ].join("\n\n"),
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(`Anthropic API-Fehler: ${response.status} ${message}`);
+  }
+
+  const payload = (await response.json()) as { content?: Array<{ type: string; text?: string }> };
+  const text = payload.content?.find((block) => block.type === "text")?.text ?? "";
+  const parsed = parseJsonObject(text) as Partial<AiPromptAnalysisResult>;
+
+  return {
+    title: String(parsed.title ?? "").trim(),
+    description: String(parsed.description ?? "").trim(),
+    tags: Array.isArray(parsed.tags) ? parsed.tags.map(String).map((tag) => tag.trim()).filter(Boolean).slice(0, 6) : [],
+    categoryName: parsed.categoryName ? String(parsed.categoryName).trim() : undefined,
+    variants: Array.isArray(parsed.variants)
+      ? parsed.variants
+          .map((variant, index) => ({
+            label: String(variant?.label ?? `Variante ${index + 1}`).trim(),
+            content: String(variant?.content ?? "").trim(),
+            note: variant?.note ? String(variant.note).trim() : undefined,
+          }))
+          .filter((variant) => variant.content)
+          .slice(0, variantCount)
+      : [],
+  };
+}
+
+function parseJsonObject(value: string) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    const match = value.match(/\{[\s\S]*\}/);
+    if (!match) {
+      throw new Error("KI-Antwort enthielt kein gültiges JSON.");
+    }
+    return JSON.parse(match[0]);
+  }
+}
