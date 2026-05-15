@@ -1353,40 +1353,36 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
           onClick={undoLastContentChange}
           title="Letzte Inhaltsänderung rückgängig"
           aria-label="Letzte Inhaltsänderung rückgängig"
-          className="flex h-12 w-14 flex-col items-center justify-center gap-0.5 rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
+          className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
         >
           <Undo2 className="h-4 w-4" />
-          <span className="text-[9px] font-medium leading-none">Rückgängig</span>
         </button>
         <button
           type="button"
           onClick={() => applyMarkdown("bold")}
           title="Fett als Markdown einfügen"
           aria-label="Fett als Markdown einfügen"
-          className="flex h-12 w-14 flex-col items-center justify-center gap-0.5 rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
+          className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
         >
           <Bold className="h-4 w-4" />
-          <span className="text-[9px] font-medium leading-none">Fett</span>
         </button>
         <button
           type="button"
           onClick={() => applyMarkdown("bullet")}
           title="Aufzählung einfügen"
           aria-label="Aufzählung einfügen"
-          className="flex h-12 w-14 flex-col items-center justify-center gap-0.5 rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
+          className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
         >
           <List className="h-4 w-4" />
-          <span className="text-[9px] font-medium leading-none">Liste</span>
         </button>
         <button
           type="button"
           onClick={() => applyMarkdown("numbered")}
           title="Nummerierte Liste einfügen"
           aria-label="Nummerierte Liste einfügen"
-          className="flex h-12 w-14 flex-col items-center justify-center gap-0.5 rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
+          className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
         >
           <ListOrdered className="h-4 w-4" />
-          <span className="text-[9px] font-medium leading-none">Nummer</span>
         </button>
         <button
           type="button"
@@ -1394,12 +1390,11 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
           title={isTextLarge ? "Schrift normal anzeigen" : "Schrift vergrößern"}
           aria-label={isTextLarge ? "Schrift normal anzeigen" : "Schrift vergrößern"}
           className={cn(
-            "flex h-12 w-14 flex-col items-center justify-center gap-0.5 rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground",
+            "flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground",
             isTextLarge && "border-ring text-foreground",
           )}
         >
           <ALargeSmall className="h-4 w-4" />
-          <span className="text-[9px] font-medium leading-none">Textgröße</span>
         </button>
       </div>
       <button
@@ -1408,12 +1403,11 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
         title={didCopy ? "Kopiert" : "Inhalt kopieren"}
         aria-label={didCopy ? "Kopiert" : "Inhalt kopieren"}
         className={cn(
-          "absolute right-3 top-3 z-10 flex h-12 w-16 flex-col items-center justify-center gap-0.5 rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground",
+          "absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground",
           didCopy && "border-emerald-500 bg-emerald-50 text-emerald-700",
         )}
       >
         {didCopy ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-        <span className="text-[9px] font-medium leading-none">{didCopy ? "Kopiert" : "Kopieren"}</span>
       </button>
       <textarea
         ref={textareaRef}
@@ -1422,7 +1416,7 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
         placeholder={copy.placeholder}
         spellCheck
         className={cn(
-          "h-full w-full resize-none bg-transparent px-6 pb-5 pt-[4.75rem] pr-16 text-foreground outline-none placeholder:text-muted-foreground",
+          "h-full w-full resize-none bg-transparent px-6 pb-5 pt-14 pr-14 text-foreground outline-none placeholder:text-muted-foreground",
           copy.className,
           isTextLarge && "text-[15px] leading-7",
         )}
