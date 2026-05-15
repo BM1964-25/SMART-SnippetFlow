@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type SelectHTMLAttributes } from "react";
 import Editor from "@monaco-editor/react";
-import { ALargeSmall, Bold, ChevronDown, ChevronRight, ChevronUp, Copy, FilePlus2, Heart, List, ListOrdered, Plus, RotateCcw, Save, Search, Sparkles, Star, Trash2, Undo2, X } from "lucide-react";
+import { ALargeSmall, Bold, Check, ChevronDown, ChevronRight, ChevronUp, Copy, FilePlus2, Heart, List, ListOrdered, Plus, RotateCcw, Save, Search, Sparkles, Star, Trash2, Undo2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -295,7 +295,7 @@ export function LibraryPage({
 
   async function handleCopyContent(content: string) {
     if (content) {
-      await navigator.clipboard.writeText(content);
+      await copyTextToClipboard(content);
       showNotice("Inhalt kopiert");
     }
   }
@@ -1198,23 +1198,31 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const undoStackRef = useRef<string[]>([]);
   const [isTextLarge, setIsTextLarge] = useState(false);
+  const [didCopy, setDidCopy] = useState(false);
 
   useEffect(() => {
     undoStackRef.current = [];
     setIsTextLarge(false);
+    setDidCopy(false);
   }, [entry.id]);
+
+  async function handleEditorCopy() {
+    await onCopy();
+    setDidCopy(true);
+    window.setTimeout(() => setDidCopy(false), 1500);
+  }
 
   if (entry.type === "code") {
     return (
       <div className="relative min-h-0 overflow-hidden rounded-lg border border-border bg-background">
         <button
           type="button"
-          onClick={onCopy}
-          title="Inhalt kopieren"
-          aria-label="Inhalt kopieren"
+          onClick={() => void handleEditorCopy()}
+          title={didCopy ? "Kopiert" : "Inhalt kopieren"}
+          aria-label={didCopy ? "Kopiert" : "Inhalt kopieren"}
           className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
         >
-          <Copy className="h-4 w-4" />
+          {didCopy ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
         </button>
         <Editor
           height="100%"
@@ -1353,12 +1361,12 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
       </div>
       <button
         type="button"
-        onClick={onCopy}
-        title="Inhalt kopieren"
-        aria-label="Inhalt kopieren"
+        onClick={() => void handleEditorCopy()}
+        title={didCopy ? "Kopiert" : "Inhalt kopieren"}
+        aria-label={didCopy ? "Kopiert" : "Inhalt kopieren"}
         className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
       >
-        <Copy className="h-4 w-4" />
+        {didCopy ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
       </button>
       <textarea
         ref={textareaRef}
@@ -1608,6 +1616,28 @@ function mergeTags(existingTags: string[], suggestedTags: string[]) {
 function shouldAutofillTitle(title: string) {
   const normalizedTitle = title.trim().toLowerCase();
   return !normalizedTitle || normalizedTitle === "neuer eintrag" || normalizedTitle === "unbenannter eintrag";
+}
+
+async function copyTextToClipboard(content: string) {
+  try {
+    await navigator.clipboard.writeText(content);
+    return;
+  } catch {
+    const textarea = document.createElement("textarea");
+    textarea.value = content;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    try {
+      document.execCommand("copy");
+    } finally {
+      document.body.removeChild(textarea);
+    }
+  }
 }
 
 function sortEntries(entries: LibraryEntry[], sortMode: "recent" | "title") {
