@@ -41,7 +41,7 @@ export default function App() {
       {activeView === "settings" ? (
         <SettingsPage license={license} onLicenseChange={setLicense} />
       ) : activeView === "help" ? (
-        <HelpPage />
+        <HelpPage onNavigate={requestViewChange} />
       ) : (
         <LibraryPage activeView={activeView} onDirtyChange={setHasUnsavedChanges} />
       )}

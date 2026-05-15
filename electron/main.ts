@@ -23,7 +23,7 @@ import {
   saveSetting,
   toggleFavorite,
 } from "./storage.js";
-import type { AiConnectionTestResult, AiPromptAnalysisRequest, AiPromptAnalysisResult, FieldOptionKey, LibraryEntryInput, LicenseState } from "../src/types/index.js";
+import type { AiConnectionTestResult, AiPromptAnalysisRequest, AiPromptAnalysisResult, EntryType, FieldOptionKey, LibraryEntryInput, LicenseState } from "../src/types/index.js";
 
 const isDev = !app.isPackaged;
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -178,7 +178,14 @@ async function analyzePromptWithAnthropic(request: AiPromptAnalysisRequest): Pro
     throw new Error("Kein Anthropic API-Key gespeichert.");
   }
 
-  const variantCount = Math.max(0, Math.min(request.variantCount ?? 1, 3));
+  const entryType = request.entryType ?? "prompt";
+  const variantCount = entryType === "prompt" ? Math.max(0, Math.min(request.variantCount ?? 1, 3)) : 0;
+  const entryTypeLabel: Record<EntryType, string> = {
+    prompt: "Prompt",
+    code: "Code",
+    workflow: "Workflow",
+    note: "Notiz",
+  };
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -186,27 +193,30 @@ async function analyzePromptWithAnthropic(request: AiPromptAnalysisRequest): Pro
       "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
     },
-    body: JSON.stringify({
-      model,
-      max_tokens: 2500,
-      temperature: 0.4,
-      system:
-        "Du bist ein präziser deutschsprachiger Prompt-Editor. Antworte ausschließlich als valides JSON ohne Markdown-Codeblock.",
-      messages: [
-        {
-          role: "user",
-          content: [
-            "Analysiere diesen Prompt für eine lokale Prompt-Bibliothek.",
-            "Erstelle kurze, professionelle Metadaten und exakt die gewünschte Anzahl verbesserter Varianten.",
+      body: JSON.stringify({
+        model,
+        max_tokens: 2500,
+        temperature: 0.4,
+        system:
+        "Du bist ein präziser deutschsprachiger Assistent für Metadaten, Struktur und Varianten. Antworte ausschließlich als valides JSON ohne Markdown-Codeblock.",
+        messages: [
+          {
+            role: "user",
+            content: [
+            `Analysiere diesen ${entryTypeLabel[entryType]} für eine lokale Bibliothek.`,
+            "Erstelle kurze, professionelle Metadaten.",
+            entryType === "prompt"
+              ? "Zusätzlich sollst du exakt die gewünschte Anzahl verbesserter Varianten erzeugen."
+              : "Es werden keine Varianten benötigt, nur Metadaten und eine saubere Struktur.",
             `Gewünschte Varianten: ${variantCount}`,
             `Bestehende Tags: ${request.existingTags.join(", ") || "keine"}`,
             `Bestehende Kategorien: ${request.existingCategories.join(", ") || "keine"}`,
             "JSON-Schema:",
             '{"title":"...","description":"...","tags":["..."],"categoryName":"...","variants":[{"label":"Variante 1","content":"...","note":"..."}]}',
-            "Prompt:",
+            `${entryTypeLabel[entryType]}:`,
             request.prompt,
           ].join("\n\n"),
-        },
+          },
       ],
     }),
   });
@@ -225,7 +235,7 @@ async function analyzePromptWithAnthropic(request: AiPromptAnalysisRequest): Pro
     description: String(parsed.description ?? "").trim(),
     tags: Array.isArray(parsed.tags) ? parsed.tags.map(String).map((tag) => tag.trim()).filter(Boolean).slice(0, 6) : [],
     categoryName: parsed.categoryName ? String(parsed.categoryName).trim() : undefined,
-    variants: Array.isArray(parsed.variants)
+    variants: entryType === "prompt" && Array.isArray(parsed.variants)
       ? parsed.variants
           .map((variant, index) => ({
             label: String(variant?.label ?? `Variante ${index + 1}`).trim(),

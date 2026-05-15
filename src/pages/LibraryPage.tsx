@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type SelectHTMLAttributes } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type SelectHTMLAttributes } from "react";
 import Editor from "@monaco-editor/react";
-import { ALargeSmall, Bold, Check, ChevronDown, ChevronRight, ChevronUp, Copy, FilePlus2, Heart, List, ListOrdered, Loader2, Plus, RotateCcw, Save, Search, Sparkles, Star, Trash2, Undo2, X } from "lucide-react";
+import { Bold, Check, ChevronDown, ChevronRight, ChevronUp, Copy, FilePlus2, List, ListOrdered, Loader2, Plus, RotateCcw, Save, Search, Sparkles, Star, Trash2, Type, Undo2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,6 +84,7 @@ export function LibraryPage({
   const [tagFilter, setTagFilter] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [didCopy, setDidCopy] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [tagInput, setTagInput] = useState("");
   const [pendingSelectionId, setPendingSelectionId] = useState<string | null>(null);
@@ -298,9 +299,15 @@ export function LibraryPage({
   async function handleCopyContent(content: string) {
     if (content) {
       await copyTextToClipboard(content);
+      setDidCopy(true);
+      window.setTimeout(() => setDidCopy(false), 1500);
       showNotice("Inhalt kopiert");
     }
   }
+
+  useEffect(() => {
+    setDidCopy(false);
+  }, [draft?.id]);
 
   function showAiMessage(message: string) {
     setAiNotice(message);
@@ -387,12 +394,60 @@ export function LibraryPage({
     showNotice("Variante als Original übernommen");
   }
 
-  async function handleAnalyzePrompt() {
-    await runPromptAiRequest("metadata");
+  async function handleAnalyzeMetadata() {
+    if (!draft) {
+      return;
+    }
+
+    await runAiMetadataRequest(draft.type);
   }
 
   async function handleCreateAiVariant() {
     await runPromptAiRequest("variant");
+  }
+
+  async function runAiMetadataRequest(entryType: EntryType) {
+    if (!draft) {
+      return;
+    }
+
+    if (!draft.content.trim()) {
+      showAiMessage("Bitte zuerst Inhalt eingeben");
+      return;
+    }
+
+    if (!window.snippetFlow?.ai?.analyzePrompt) {
+      showAiMessage("KI-Abfrage ist in der Browser-Vorschau nicht aktiv. Bitte Desktop-App nutzen.");
+      return;
+    }
+
+    setIsAiBusy(true);
+    setAiNotice(null);
+
+    try {
+      const variants = draft.promptVariants ?? [];
+      const result = await window.snippetFlow.ai.analyzePrompt({
+        prompt: draft.content,
+        existingTags: availableTags,
+        existingCategories: categoryOptions.map((category) => category.name),
+        variantCount: entryType === "prompt" && variants.length < 3 ? 1 : 0,
+        entryType,
+      });
+
+      if (entryType === "prompt") {
+        await applyAiPromptResult(result, "metadata");
+        showAiMessage("KI-Vorschläge übernommen");
+        return;
+      }
+
+      await applyAiGenericMetadataResult(result);
+      showAiMessage("Metadaten ergänzt");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "KI-Abfrage fehlgeschlagen";
+      showAiMessage(message);
+    } finally {
+      setIsAiBusy(false);
+    }
   }
 
   async function runPromptAiRequest(mode: "metadata" | "variant") {
@@ -478,6 +533,22 @@ export function LibraryPage({
     if (addedVariant && addedVariant.id !== currentVariants.at(-1)?.id) {
       setActivePromptVersionId(addedVariant.id);
     }
+  }
+
+  async function applyAiGenericMetadataResult(result: AiPromptAnalysisResult) {
+    if (!draft) {
+      return;
+    }
+
+    const categoryPatch = draft.categoryId ? {} : await resolveAiCategoryPatch(result.categoryName);
+
+    setDraft({
+      ...draft,
+      title: shouldAutofillTitle(draft.title) && result.title ? result.title : draft.title,
+      description: !draft.description.trim() && result.description ? result.description : draft.description,
+      tags: mergeTags(draft.tags, result.tags),
+      ...categoryPatch,
+    });
   }
 
   async function resolveAiCategoryPatch(categoryName: string | undefined) {
@@ -833,34 +904,32 @@ export function LibraryPage({
 
                 <div className="mt-3">
                   <h2 className="text-2xl font-semibold tracking-normal">{editorTitle[draft.type]}</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">{editorDescription[draft.type]}</p>
+                  <p className="mt-1 whitespace-nowrap text-sm text-muted-foreground">{editorDescription[draft.type]}</p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button onClick={handleSave} variant="outline" title="Speichern" className="h-12 w-16 flex-col gap-0.5 px-2">
+                <HeaderIconButton label="Speichern" onClick={handleSave}>
                   <Save className="h-4 w-4" />
-                  <span className="text-[9px] leading-none">Speichern</span>
-                </Button>
-                <Button onClick={handleDiscard} variant="outline" title="Änderungen verwerfen" disabled={!isDirty} className="h-12 w-16 flex-col gap-0.5 px-2">
+                </HeaderIconButton>
+                <HeaderIconButton label="Änderungen verwerfen" onClick={handleDiscard} disabled={!isDirty}>
                   <RotateCcw className="h-4 w-4" />
-                  <span className="text-[9px] leading-none">Verwerfen</span>
-                </Button>
-                <Button onClick={handleCopy} variant="outline" title="Kopieren" className="h-12 w-16 flex-col gap-0.5 px-2">
-                  <Copy className="h-4 w-4" />
-                  <span className="text-[9px] leading-none">Kopieren</span>
-                </Button>
-                <Button onClick={handleDuplicate} variant="outline" title="Duplizieren" className="h-12 w-16 flex-col gap-0.5 px-2">
+                </HeaderIconButton>
+                <HeaderIconButton
+                  label={didCopy ? "Kopiert" : "Kopieren"}
+                  onClick={handleCopy}
+                  className={cn(didCopy && "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-700")}
+                >
+                  {didCopy ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </HeaderIconButton>
+                <HeaderIconButton label="Duplizieren" onClick={handleDuplicate}>
                   <FilePlus2 className="h-4 w-4" />
-                  <span className="text-[9px] leading-none">Kopie</span>
-                </Button>
-                <Button onClick={handleFavorite} variant="outline" title="Favorit" className="h-12 w-16 flex-col gap-0.5 px-2">
-                  <Heart className={cn("h-4 w-4", draft.isFavorite && "fill-rose-500 text-rose-500")} />
-                  <span className="text-[9px] leading-none">Favorit</span>
-                </Button>
-                <Button onClick={handleDelete} variant="outline" title="Löschen" className="h-12 w-16 flex-col gap-0.5 px-2">
+                </HeaderIconButton>
+                <HeaderIconButton label="Favorit" onClick={handleFavorite}>
+                  <Star className={cn("h-4 w-4", draft.isFavorite && "fill-amber-400 text-amber-500")} />
+                </HeaderIconButton>
+                <HeaderIconButton label="Löschen" onClick={handleDelete}>
                   <Trash2 className="h-4 w-4" />
-                  <span className="text-[9px] leading-none">Löschen</span>
-                </Button>
+                </HeaderIconButton>
               </div>
             </div>
 
@@ -887,20 +956,20 @@ export function LibraryPage({
                 />
               </label>
 
-              {draft.type === "prompt" && (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2">
-                  <p className="text-xs leading-5 text-muted-foreground">
-                    Füllt leere Titel-, Beschreibungs- und Kategoriefelder per KI. Bestehende manuelle Inhalte bleiben erhalten.
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button type="button" onClick={() => void handleAnalyzePrompt()} variant="brand" disabled={isAiBusy}>
-                      {isAiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                      Titel & Metadaten ausfüllen
-                    </Button>
-                    {aiNotice && <span className="text-xs text-muted-foreground">{aiNotice}</span>}
-                  </div>
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2">
+                <p className="text-xs leading-5 text-muted-foreground">
+                  {draft.type === "prompt"
+                    ? "Füllt leere Titel-, Beschreibungs- und Kategoriefelder per KI. Bestehende manuelle Inhalte bleiben erhalten."
+                    : "Füllt Titel, Beschreibung, Kategorie und Tags per KI aus. Bestehende Inhalte bleiben erhalten."}
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button type="button" onClick={() => void handleAnalyzeMetadata()} variant="brand" disabled={isAiBusy}>
+                    {isAiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    Titel & Metadaten ausfüllen
+                  </Button>
+                  {aiNotice && <span className="text-xs text-muted-foreground">{aiNotice}</span>}
                 </div>
-              )}
+              </div>
 
               <div className={cn("grid gap-3", shouldShowPreview ? "grid-cols-3" : showAiSystemField ? "grid-cols-2" : "grid-cols-1")}>
                 <label className="grid gap-1 text-xs font-medium text-muted-foreground">
@@ -1091,12 +1160,12 @@ export function LibraryPage({
                   {activePromptVariant?.note && <p className="mt-0.5 text-xs text-muted-foreground">{activePromptVariant.note}</p>}
                 </div>
                 {draft.type === "prompt" && (
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-background/80 p-2 shadow-sm">
                     <button
                       type="button"
                       onClick={() => setActivePromptVersionId("original")}
                       className={cn(
-                        "h-8 rounded-md border border-border px-3 text-xs font-medium hover:bg-muted",
+                        "h-8 rounded-md border border-border bg-card px-3 text-xs font-medium shadow-sm hover:bg-muted",
                         activePromptVersionId === "original" && "border-ring bg-muted text-foreground",
                       )}
                     >
@@ -1113,7 +1182,7 @@ export function LibraryPage({
                         type="button"
                         onClick={() => setActivePromptVersionId(variant.id)}
                         className={cn(
-                          "h-8 rounded-md border border-border px-3 text-xs font-medium hover:bg-muted",
+                          "h-8 rounded-md border border-border bg-card px-3 text-xs font-medium shadow-sm hover:bg-muted",
                           activePromptVersionId === variant.id && "border-ring bg-muted text-foreground",
                         )}
                       >
@@ -1186,9 +1255,9 @@ export function LibraryPage({
             </div>
 
             {shouldShowPreview && (
-              <div className="grid h-48 min-h-36 max-h-[60vh] resize-y grid-cols-[220px_minmax(0,1fr)] overflow-hidden rounded-lg border border-border bg-background">
-                <div className="border-r border-border p-4">
-                  <p className="text-sm font-medium">{previewLabel}</p>
+              <div className="grid h-48 min-h-36 max-h-[60vh] resize-y grid-cols-[220px_minmax(0,1fr)] overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+                <div className="border-r border-border bg-muted/20 p-4">
+                  <p className="text-sm font-semibold">{previewLabel}</p>
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">
                     {draft.type === "code" ? "Ausgabe für HTML, CSS, JavaScript oder Markdown." : "Markdown-Vorschau für strukturierte Inhalte."}
                   </p>
@@ -1348,67 +1417,33 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
   return (
     <div className="relative h-[360px] min-h-56 max-h-[70vh] resize-y overflow-hidden rounded-lg border border-border bg-background">
       <div className="absolute left-3 top-3 z-10 flex flex-wrap items-start gap-1">
-        <button
-          type="button"
-          onClick={undoLastContentChange}
-          title="Letzte Inhaltsänderung rückgängig"
-          aria-label="Letzte Inhaltsänderung rückgängig"
-          className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
-        >
-          <Undo2 className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => applyMarkdown("bold")}
-          title="Fett als Markdown einfügen"
-          aria-label="Fett als Markdown einfügen"
-          className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
-        >
-          <Bold className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => applyMarkdown("bullet")}
-          title="Aufzählung einfügen"
-          aria-label="Aufzählung einfügen"
-          className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
-        >
-          <List className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => applyMarkdown("numbered")}
-          title="Nummerierte Liste einfügen"
-          aria-label="Nummerierte Liste einfügen"
-          className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
-        >
-          <ListOrdered className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
+        <HeaderIconButton label="Rückgängig" onClick={undoLastContentChange} className="h-10 w-10">
+          <Undo2 className="h-5 w-5" />
+        </HeaderIconButton>
+        <HeaderIconButton label="Fett als Markdown einfügen" onClick={() => applyMarkdown("bold")} className="h-10 w-10">
+          <Bold className="h-5 w-5" />
+        </HeaderIconButton>
+        <HeaderIconButton label="Aufzählung einfügen" onClick={() => applyMarkdown("bullet")} className="h-10 w-10">
+          <List className="h-5 w-5" />
+        </HeaderIconButton>
+        <HeaderIconButton label="Nummerierte Liste einfügen" onClick={() => applyMarkdown("numbered")} className="h-10 w-10">
+          <ListOrdered className="h-5 w-5" />
+        </HeaderIconButton>
+        <HeaderIconButton
+          label={isTextLarge ? "Schrift normal anzeigen" : "Schrift vergrößern"}
           onClick={() => setIsTextLarge((current) => !current)}
-          title={isTextLarge ? "Schrift normal anzeigen" : "Schrift vergrößern"}
-          aria-label={isTextLarge ? "Schrift normal anzeigen" : "Schrift vergrößern"}
-          className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground",
-            isTextLarge && "border-ring text-foreground",
-          )}
+          className={cn(isTextLarge && "border-ring text-foreground", "h-10 w-10")}
         >
-          <ALargeSmall className="h-4 w-4" />
-        </button>
+          <Type className="h-5 w-5" />
+        </HeaderIconButton>
       </div>
-      <button
-        type="button"
+      <HeaderIconButton
+        label={didCopy ? "Kopiert" : "Inhalt kopieren"}
         onClick={() => void handleEditorCopy()}
-        title={didCopy ? "Kopiert" : "Inhalt kopieren"}
-        aria-label={didCopy ? "Kopiert" : "Inhalt kopieren"}
-        className={cn(
-          "absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground",
-          didCopy && "border-emerald-500 bg-emerald-50 text-emerald-700",
-        )}
+        className={cn("absolute right-3 top-3 z-10 h-10 w-10", didCopy && "border-emerald-500 bg-emerald-50 text-emerald-700")}
       >
-        {didCopy ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-      </button>
+        {didCopy ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
+      </HeaderIconButton>
       <textarea
         ref={textareaRef}
         value={entry.content}
@@ -1438,6 +1473,37 @@ function SelectControl({ className, children, ...props }: SelectHTMLAttributes<H
         {children}
       </select>
       <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+    </div>
+  );
+}
+
+function HeaderIconButton({
+  label,
+  onClick,
+  disabled,
+  className,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="group relative">
+      <Button
+        onClick={onClick}
+        variant="outline"
+        disabled={disabled}
+        aria-label={label}
+        className={cn("h-12 w-12", className)}
+      >
+        {children}
+      </Button>
+      <span className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-950 px-2 py-1 text-[11px] font-medium text-white shadow-lg group-hover:block group-focus-within:block">
+        {label}
+      </span>
     </div>
   );
 }
@@ -1554,9 +1620,9 @@ function PromptVariantWorkflowSteps({
   ];
 
   return (
-    <div className="rounded-lg border border-border bg-background px-3 py-2">
+    <div className="rounded-xl border border-border bg-gradient-to-r from-slate-50 via-white to-cyan-50 px-4 py-3 shadow-sm">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs font-semibold text-foreground">Varianten-Workflow</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Varianten-Workflow</p>
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" onClick={onCreateAiVariant} variant="brand" disabled={isBusy || variantCount >= 3} className="h-8">
             {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
@@ -1571,7 +1637,7 @@ function PromptVariantWorkflowSteps({
       </div>
       <div className="grid grid-cols-3 gap-3">
         {steps.map((step, index) => (
-          <div key={step.label} className="flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-md border border-border/70 bg-card px-2 py-2 text-center">
+          <div key={step.label} className="flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-md border border-border/70 bg-card px-2 py-2 text-center shadow-sm">
             <span className="flex min-w-0 items-center justify-center gap-1.5">
               <span
                 className={cn(

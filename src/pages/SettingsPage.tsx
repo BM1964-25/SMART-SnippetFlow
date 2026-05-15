@@ -22,7 +22,7 @@ const statusLabel: Record<LicenseStatus, string> = {
 const dataManagementItems = [
   {
     title: "Lokale Speicherung",
-    description: "Desktop: SQLite im App-Datenverzeichnis des jeweiligen Nutzers.",
+    description: "Desktop-App: SQLite im App-Datenverzeichnis des jeweiligen Nutzers. Auf macOS liegt es typischerweise unter ~/Library/Application Support/SMART SnippetFlow, unter Windows unter %APPDATA%\\SMART SnippetFlow.",
     icon: HardDrive,
   },
   {
@@ -32,7 +32,7 @@ const dataManagementItems = [
   },
   {
     title: "Exportumfang",
-    description: "Der JSON-Export kann die gesamte Bibliothek oder gezielt einen Bereich enthalten.",
+    description: "Der JSON-Export kann die gesamte Bibliothek oder gezielt einen Bereich enthalten. Im Browser wird die Datei standardmäßig im Downloads-Ordner vorgeschlagen; dort lässt sich der Speicherort meist noch ändern.",
     icon: Archive,
   },
   {
@@ -65,6 +65,7 @@ export function SettingsPage({
   const [aiDraft, setAiDraft] = useState({
     anthropicApiKey: "",
   });
+  const [aiConnectionState, setAiConnectionState] = useState<"unknown" | "checking" | "ok" | "failed">("unknown");
   const [isApiKeyVisible, setIsApiKeyVisible] = useState(false);
   const [isAiChecking, setIsAiChecking] = useState(false);
   const [exportScope, setExportScope] = useState<EntryType | "all">("all");
@@ -126,6 +127,7 @@ export function SettingsPage({
     await saveAiSettings(apiKey, defaultAnthropicModel);
 
     setAiDraft({ anthropicApiKey: apiKey });
+    setAiConnectionState(apiKey ? "unknown" : "failed");
     setAiNotice("KI-Einstellungen gespeichert");
     window.setTimeout(() => setAiNotice(null), 2200);
   }
@@ -137,14 +139,17 @@ export function SettingsPage({
 
     if (!window.snippetFlow?.ai?.testConnection) {
       setAiNotice("Verbindung kann nur in der Desktop-App geprüft werden.");
+      setAiConnectionState("unknown");
       return;
     }
 
     setIsAiChecking(true);
+    setAiConnectionState("checking");
     setAiNotice("Verbindung wird geprüft...");
 
     try {
       const result = await window.snippetFlow.ai.testConnection();
+      setAiConnectionState(result.ok ? "ok" : "failed");
       setAiNotice(result.ok ? `${result.message} (${result.model})` : result.message);
     } finally {
       setIsAiChecking(false);
@@ -154,6 +159,7 @@ export function SettingsPage({
   async function handleDisconnectAi() {
     await saveAiSettings("", defaultAnthropicModel);
     setAiDraft({ anthropicApiKey: "" });
+    setAiConnectionState("unknown");
     setAiNotice("Verbindung getrennt. Der API-Key wurde lokal gelöscht.");
   }
 
@@ -321,19 +327,33 @@ export function SettingsPage({
             <p className="max-w-2xl text-xs leading-5 text-muted-foreground">
               Für die Verkaufsversion sollte der Key verschlüsselt im Betriebssystem-Schlüsselbund gespeichert werden. Diese Version speichert ihn lokal in den App-Einstellungen.
             </p>
-            <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
-              <Button onClick={handleSaveAiSettings} className="min-w-32">
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-2">
+              <Button onClick={handleSaveAiSettings} className="w-full whitespace-nowrap">
                 <Save className="h-4 w-4" />
                 Speichern
               </Button>
-              <Button onClick={() => void handleCheckAiConnection()} variant="outline" disabled={isAiChecking} className="min-w-52">
+              <Button
+                variant={aiConnectionState === "ok" ? "success" : "outline"}
+                disabled
+                className="w-full whitespace-nowrap"
+              >
+                {aiConnectionState === "checking" ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : aiConnectionState === "ok" ? (
+                  <BadgeCheck className="h-4 w-4" />
+                ) : (
+                  <ShieldCheck className="h-4 w-4" />
+                )}
+                {aiConnectionState === "ok" ? "Verbindung OK" : aiConnectionState === "failed" ? "Verbindung fehlt" : "Verbindung"}
+              </Button>
+              <Button onClick={() => void handleCheckAiConnection()} variant="outline" disabled={isAiChecking} className="w-full whitespace-nowrap">
                 <RefreshCw className="h-4 w-4" />
                 Verbindung überprüfen
               </Button>
               <Button
                 onClick={() => void handleDisconnectAi()}
                 variant="outline"
-                className="min-w-48 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                className="w-full whitespace-nowrap border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
               >
                 <Unplug className="h-4 w-4" />
                 Verbindung trennen

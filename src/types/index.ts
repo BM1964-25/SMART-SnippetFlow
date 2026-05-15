@@ -100,6 +100,7 @@ export interface AiPromptAnalysisRequest {
   existingTags: string[];
   existingCategories: string[];
   variantCount?: number;
+  entryType?: EntryType;
 }
 
 export interface AiPromptAnalysisResult {

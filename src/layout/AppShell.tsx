@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { CircleHelp, Code2, Heart, Library, NotebookText, PanelLeftClose, PanelLeftOpen, Settings, Workflow } from "lucide-react";
+import { CircleHelp, Code2, Library, NotebookText, PanelLeftClose, PanelLeftOpen, Settings, Star, Workflow } from "lucide-react";
 import appLogo from "@/assets/app-logo.png";
 import type { AppView, LicenseStatus } from "@/types";
 import { cn } from "@/utils/cn";
@@ -10,7 +10,7 @@ const navItems = [
   { id: "code", label: "Code", icon: Code2 },
   { id: "workflows", label: "Workflows", icon: Workflow },
   { id: "notes", label: "Notizen", icon: NotebookText },
-  { id: "favorites", label: "Favoriten", icon: Heart },
+  { id: "favorites", label: "Favoriten", icon: Star },
   { id: "settings", label: "Einstellungen", icon: Settings },
   { id: "help", label: "Hilfe", icon: CircleHelp },
 ] satisfies Array<{ id: AppView; label: string; icon: typeof Library }>;
