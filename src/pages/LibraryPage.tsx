@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type SelectHTMLAttributes } from "react";
 import Editor from "@monaco-editor/react";
-import { ALargeSmall, Bold, Check, ChevronDown, ChevronRight, ChevronUp, Copy, FilePlus2, Heart, List, ListOrdered, Plus, RotateCcw, Save, Search, Sparkles, Star, Trash2, Undo2, X } from "lucide-react";
+import { ALargeSmall, Bold, Check, ChevronDown, ChevronRight, ChevronUp, Copy, FilePlus2, Heart, List, ListOrdered, Loader2, Plus, RotateCcw, Save, Search, Sparkles, Star, Trash2, Undo2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +47,7 @@ const viewTitle: Record<Exclude<AppView, "settings">, string> = {
   workflows: "Workflows",
   notes: "Notizen",
   favorites: "Favoriten",
+  help: "Hilfe",
 };
 
 const viewDescription: Record<Exclude<AppView, "settings">, string> = {
@@ -56,6 +57,7 @@ const viewDescription: Record<Exclude<AppView, "settings">, string> = {
   workflows: "Schlanke Abläufe für wiederkehrende Arbeit.",
   notes: "Leichte Markdown-Notizen ohne überflüssige Struktur.",
   favorites: "Die wichtigsten Einträge ohne Umwege.",
+  help: "Kurze Orientierung zu Prozessen, Varianten und Editor-Hilfen.",
 };
 
 export function LibraryPage({
@@ -834,24 +836,30 @@ export function LibraryPage({
                   <p className="mt-1 text-sm text-muted-foreground">{editorDescription[draft.type]}</p>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Button onClick={handleSave} variant="outline" size="icon" title="Speichern">
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={handleSave} variant="outline" title="Speichern" className="h-12 w-16 flex-col gap-0.5 px-2">
                   <Save className="h-4 w-4" />
+                  <span className="text-[9px] leading-none">Speichern</span>
                 </Button>
-                <Button onClick={handleDiscard} variant="outline" size="icon" title="Änderungen verwerfen" disabled={!isDirty}>
+                <Button onClick={handleDiscard} variant="outline" title="Änderungen verwerfen" disabled={!isDirty} className="h-12 w-16 flex-col gap-0.5 px-2">
                   <RotateCcw className="h-4 w-4" />
+                  <span className="text-[9px] leading-none">Verwerfen</span>
                 </Button>
-                <Button onClick={handleCopy} variant="outline" size="icon" title="Kopieren">
+                <Button onClick={handleCopy} variant="outline" title="Kopieren" className="h-12 w-16 flex-col gap-0.5 px-2">
                   <Copy className="h-4 w-4" />
+                  <span className="text-[9px] leading-none">Kopieren</span>
                 </Button>
-                <Button onClick={handleDuplicate} variant="outline" size="icon" title="Duplizieren">
+                <Button onClick={handleDuplicate} variant="outline" title="Duplizieren" className="h-12 w-16 flex-col gap-0.5 px-2">
                   <FilePlus2 className="h-4 w-4" />
+                  <span className="text-[9px] leading-none">Kopie</span>
                 </Button>
-                <Button onClick={handleFavorite} variant="outline" size="icon" title="Favorit">
+                <Button onClick={handleFavorite} variant="outline" title="Favorit" className="h-12 w-16 flex-col gap-0.5 px-2">
                   <Heart className={cn("h-4 w-4", draft.isFavorite && "fill-rose-500 text-rose-500")} />
+                  <span className="text-[9px] leading-none">Favorit</span>
                 </Button>
-                <Button onClick={handleDelete} variant="outline" size="icon" title="Löschen">
+                <Button onClick={handleDelete} variant="outline" title="Löschen" className="h-12 w-16 flex-col gap-0.5 px-2">
                   <Trash2 className="h-4 w-4" />
+                  <span className="text-[9px] leading-none">Löschen</span>
                 </Button>
               </div>
             </div>
@@ -885,8 +893,8 @@ export function LibraryPage({
                     Füllt leere Titel-, Beschreibungs- und Kategoriefelder per KI. Bestehende manuelle Inhalte bleiben erhalten.
                   </p>
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button type="button" onClick={() => void handleAnalyzePrompt()} variant="outline" disabled={isAiBusy}>
-                      <Sparkles className="h-4 w-4" />
+                    <Button type="button" onClick={() => void handleAnalyzePrompt()} variant="brand" disabled={isAiBusy}>
+                      {isAiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                       Titel & Metadaten ausfüllen
                     </Button>
                     {aiNotice && <span className="text-xs text-muted-foreground">{aiNotice}</span>}
@@ -1246,9 +1254,13 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
           onClick={() => void handleEditorCopy()}
           title={didCopy ? "Kopiert" : "Inhalt kopieren"}
           aria-label={didCopy ? "Kopiert" : "Inhalt kopieren"}
-          className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
+          className={cn(
+            "absolute right-3 top-3 z-10 flex h-12 w-16 flex-col items-center justify-center gap-0.5 rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground",
+            didCopy && "border-emerald-500 bg-emerald-50 text-emerald-700",
+          )}
         >
-          {didCopy ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+          {didCopy ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          <span className="text-[9px] font-medium leading-none">{didCopy ? "Kopiert" : "Kopieren"}</span>
         </button>
         <Editor
           height="100%"
@@ -1335,42 +1347,46 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
 
   return (
     <div className="relative h-[360px] min-h-56 max-h-[70vh] resize-y overflow-hidden rounded-lg border border-border bg-background">
-      <div className="absolute left-3 top-3 z-10 flex items-center gap-1">
+      <div className="absolute left-3 top-3 z-10 flex flex-wrap items-start gap-1">
         <button
           type="button"
           onClick={undoLastContentChange}
           title="Letzte Inhaltsänderung rückgängig"
           aria-label="Letzte Inhaltsänderung rückgängig"
-          className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
+          className="flex h-12 w-14 flex-col items-center justify-center gap-0.5 rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
         >
           <Undo2 className="h-4 w-4" />
+          <span className="text-[9px] font-medium leading-none">Rückgängig</span>
         </button>
         <button
           type="button"
           onClick={() => applyMarkdown("bold")}
           title="Fett als Markdown einfügen"
           aria-label="Fett als Markdown einfügen"
-          className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
+          className="flex h-12 w-14 flex-col items-center justify-center gap-0.5 rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
         >
           <Bold className="h-4 w-4" />
+          <span className="text-[9px] font-medium leading-none">Fett</span>
         </button>
         <button
           type="button"
           onClick={() => applyMarkdown("bullet")}
           title="Aufzählung einfügen"
           aria-label="Aufzählung einfügen"
-          className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
+          className="flex h-12 w-14 flex-col items-center justify-center gap-0.5 rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
         >
           <List className="h-4 w-4" />
+          <span className="text-[9px] font-medium leading-none">Liste</span>
         </button>
         <button
           type="button"
           onClick={() => applyMarkdown("numbered")}
           title="Nummerierte Liste einfügen"
           aria-label="Nummerierte Liste einfügen"
-          className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
+          className="flex h-12 w-14 flex-col items-center justify-center gap-0.5 rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
         >
           <ListOrdered className="h-4 w-4" />
+          <span className="text-[9px] font-medium leading-none">Nummer</span>
         </button>
         <button
           type="button"
@@ -1378,11 +1394,12 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
           title={isTextLarge ? "Schrift normal anzeigen" : "Schrift vergrößern"}
           aria-label={isTextLarge ? "Schrift normal anzeigen" : "Schrift vergrößern"}
           className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground",
+            "flex h-12 w-14 flex-col items-center justify-center gap-0.5 rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground",
             isTextLarge && "border-ring text-foreground",
           )}
         >
           <ALargeSmall className="h-4 w-4" />
+          <span className="text-[9px] font-medium leading-none">Textgröße</span>
         </button>
       </div>
       <button
@@ -1390,9 +1407,13 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
         onClick={() => void handleEditorCopy()}
         title={didCopy ? "Kopiert" : "Inhalt kopieren"}
         aria-label={didCopy ? "Kopiert" : "Inhalt kopieren"}
-        className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
+        className={cn(
+          "absolute right-3 top-3 z-10 flex h-12 w-16 flex-col items-center justify-center gap-0.5 rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground",
+          didCopy && "border-emerald-500 bg-emerald-50 text-emerald-700",
+        )}
       >
-        {didCopy ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+        {didCopy ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+        <span className="text-[9px] font-medium leading-none">{didCopy ? "Kopiert" : "Kopieren"}</span>
       </button>
       <textarea
         ref={textareaRef}
@@ -1401,7 +1422,7 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
         placeholder={copy.placeholder}
         spellCheck
         className={cn(
-          "h-full w-full resize-none bg-transparent px-6 pb-5 pt-14 pr-14 text-foreground outline-none placeholder:text-muted-foreground",
+          "h-full w-full resize-none bg-transparent px-6 pb-5 pt-[4.75rem] pr-16 text-foreground outline-none placeholder:text-muted-foreground",
           copy.className,
           isTextLarge && "text-[15px] leading-7",
         )}
@@ -1544,7 +1565,7 @@ function PromptVariantWorkflowSteps({
         <p className="text-xs font-semibold text-foreground">Varianten-Workflow</p>
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" onClick={onCreateAiVariant} variant="brand" disabled={isBusy || variantCount >= 3} className="h-8">
-            <Sparkles className="h-4 w-4" />
+            {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             KI-Variante
           </Button>
           <Button type="button" onClick={onAddManualVariant} variant="amber" disabled={variantCount >= 3} className="h-8">

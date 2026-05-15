@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "@/layout/AppShell";
+import { HelpPage } from "@/pages/HelpPage";
 import { LibraryPage } from "@/pages/LibraryPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import type { AppView, LicenseState } from "@/types";
@@ -39,6 +40,8 @@ export default function App() {
     <AppShell activeView={activeView} licenseStatus={license.status} onViewChange={requestViewChange}>
       {activeView === "settings" ? (
         <SettingsPage license={license} onLicenseChange={setLicense} />
+      ) : activeView === "help" ? (
+        <HelpPage />
       ) : (
         <LibraryPage activeView={activeView} onDirtyChange={setHasUnsavedChanges} />
       )}
