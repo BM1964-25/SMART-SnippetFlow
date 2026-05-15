@@ -12,6 +12,10 @@ const buttonVariants = cva(
         secondary: "bg-muted text-foreground hover:bg-muted/80",
         ghost: "hover:bg-muted",
         outline: "border border-border bg-background hover:bg-muted",
+        brand: "bg-gradient-to-r from-sky-600 via-blue-600 to-cyan-500 text-white shadow-sm hover:brightness-105",
+        success: "bg-gradient-to-r from-emerald-600 via-emerald-500 to-lime-500 text-white shadow-sm hover:brightness-105",
+        amber: "bg-gradient-to-r from-amber-500 via-orange-500 to-amber-400 text-slate-950 shadow-sm hover:brightness-105",
+        rose: "bg-gradient-to-r from-rose-600 via-pink-600 to-fuchsia-500 text-white shadow-sm hover:brightness-105",
       },
       size: {
         default: "h-9 px-3",

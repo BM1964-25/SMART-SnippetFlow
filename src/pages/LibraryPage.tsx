@@ -305,6 +305,24 @@ export function LibraryPage({
     window.setTimeout(() => setAiNotice(null), 3600);
   }
 
+  function getPromptVersionInfo(versionId: string) {
+    if (versionId === "original") {
+      return {
+        label: "Original",
+        meta: draft?.promptVariants?.length ? "Ursprungsfassung" : "Ausgangstext",
+      };
+    }
+
+    const variants = draft?.promptVariants ?? [];
+    const index = variants.findIndex((variant) => variant.id === versionId);
+    const variant = index >= 0 ? variants[index] : undefined;
+
+    return {
+      label: `Variante ${index >= 0 ? index + 1 : ""}`.trim(),
+      meta: variant?.source === "ai" ? "Optimiert" : "Manuell",
+    };
+  }
+
   function updatePromptVariant(id: string, patch: Partial<PromptVariant>) {
     if (!draft || draft.type !== "prompt") {
       return;
@@ -1045,10 +1063,7 @@ export function LibraryPage({
             </div>
           </header>
 
-          <div className={cn(
-            "grid min-h-0 flex-1 gap-5 overflow-hidden px-8 py-6",
-            shouldShowPreview ? "grid-rows-[minmax(0,1fr)_180px]" : "grid-rows-[minmax(0,1fr)]",
-          )}>
+          <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-6">
             <div
               className={cn(
                 "grid min-h-0 gap-1",
@@ -1062,8 +1077,9 @@ export function LibraryPage({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-medium text-muted-foreground">
-                    {activePromptVariant ? activePromptVariant.label : "Inhalt"}
+                    {getPromptVersionInfo(activePromptVersionId).label}
                   </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{getPromptVersionInfo(activePromptVersionId).meta}</p>
                   {activePromptVariant?.note && <p className="mt-0.5 text-xs text-muted-foreground">{activePromptVariant.note}</p>}
                 </div>
                 {draft.type === "prompt" && (
@@ -1076,7 +1092,12 @@ export function LibraryPage({
                         activePromptVersionId === "original" && "border-ring bg-muted text-foreground",
                       )}
                     >
-                      Original
+                      <span className="inline-flex items-center gap-1 leading-tight">
+                        <span>Original</span>
+                        <span className="rounded-full border border-border/70 px-1.5 py-0.5 text-[9px] font-normal text-muted-foreground">
+                          {getPromptVersionInfo("original").meta}
+                        </span>
+                      </span>
                     </button>
                     {promptVariants.map((variant, index) => (
                       <button
@@ -1088,7 +1109,12 @@ export function LibraryPage({
                           activePromptVersionId === variant.id && "border-ring bg-muted text-foreground",
                         )}
                       >
-                        {variant.label || `Variante ${index + 1}`}
+                        <span className="inline-flex items-center gap-1 leading-tight">
+                          <span>{`Variante ${index + 1}`}</span>
+                          <span className="rounded-full border border-border/70 px-1.5 py-0.5 text-[9px] font-normal text-muted-foreground">
+                            {variant.source === "ai" ? "Optimiert" : "Manuell"}
+                          </span>
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -1124,17 +1150,17 @@ export function LibraryPage({
                     <option value="medium">Mittel</option>
                     <option value="weak">Schwach</option>
                   </SelectControl>
-                  <Button type="button" onClick={() => promotePromptVariant(activePromptVariant.id)} variant="outline" className="h-9">
-                    Als Original
+                  <Button type="button" onClick={() => promotePromptVariant(activePromptVariant.id)} variant="success" className="h-9">
+                    Original übernehmen
                   </Button>
                   <Button
                     type="button"
                     onClick={() => deletePromptVariant(activePromptVariant.id)}
-                    variant="outline"
+                    variant="rose"
                     size="icon"
                     title="Variante löschen"
                     aria-label="Variante löschen"
-                    className="h-9 w-9 text-rose-600 hover:text-rose-700"
+                    className="h-9 w-9"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -1152,7 +1178,7 @@ export function LibraryPage({
             </div>
 
             {shouldShowPreview && (
-              <div className="grid grid-cols-[220px_minmax(0,1fr)] overflow-hidden rounded-lg border border-border bg-background">
+              <div className="grid h-48 min-h-36 max-h-[60vh] resize-y grid-cols-[220px_minmax(0,1fr)] overflow-hidden rounded-lg border border-border bg-background">
                 <div className="border-r border-border p-4">
                   <p className="text-sm font-medium">{previewLabel}</p>
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -1214,7 +1240,7 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
 
   if (entry.type === "code") {
     return (
-      <div className="relative min-h-0 overflow-hidden rounded-lg border border-border bg-background">
+      <div className="relative h-[360px] min-h-56 max-h-[70vh] resize-y overflow-hidden rounded-lg border border-border bg-background">
         <button
           type="button"
           onClick={() => void handleEditorCopy()}
@@ -1308,7 +1334,7 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
   };
 
   return (
-    <div className="relative min-h-0 overflow-hidden rounded-lg border border-border bg-background">
+    <div className="relative h-[360px] min-h-56 max-h-[70vh] resize-y overflow-hidden rounded-lg border border-border bg-background">
       <div className="absolute left-3 top-3 z-10 flex items-center gap-1">
         <button
           type="button"
@@ -1509,7 +1535,7 @@ function PromptVariantWorkflowSteps({
   const steps = [
     { label: "Variante erstellen", hint: "Button: KI-Variante", done: variantCount > 0 },
     { label: "Variante vergleichen", hint: "Original oder Variante wählen", done: variantCount > 0 },
-    { label: "Variante übernehmen", hint: "Als Original", done: false },
+    { label: "Variante übernehmen", hint: "Original übernehmen", done: false },
   ];
 
   return (
@@ -1517,13 +1543,13 @@ function PromptVariantWorkflowSteps({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs font-semibold text-foreground">Varianten-Workflow</p>
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" onClick={onCreateAiVariant} variant="outline" disabled={isBusy || variantCount >= 3} className="h-8">
+          <Button type="button" onClick={onCreateAiVariant} variant="brand" disabled={isBusy || variantCount >= 3} className="h-8">
             <Sparkles className="h-4 w-4" />
             KI-Variante
           </Button>
-          <Button type="button" onClick={onAddManualVariant} variant="outline" disabled={variantCount >= 3} className="h-8">
+          <Button type="button" onClick={onAddManualVariant} variant="amber" disabled={variantCount >= 3} className="h-8">
             <Plus className="h-4 w-4" />
-            Leere Variante
+            Variante hinzufügen
           </Button>
           <span className="text-[11px] text-muted-foreground">{variantCount}/3 Varianten</span>
         </div>
