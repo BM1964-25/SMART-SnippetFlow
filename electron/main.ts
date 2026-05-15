@@ -1,5 +1,6 @@
 import path from "node:path";
 import fs from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import {
   createExportPayload,
@@ -25,6 +26,7 @@ import {
 import type { AiConnectionTestResult, AiPromptAnalysisRequest, AiPromptAnalysisResult, FieldOptionKey, LibraryEntryInput, LicenseState } from "../src/types/index.js";
 
 const isDev = !app.isPackaged;
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
 app.setName("SMART SnippetFlow");
 
@@ -38,7 +40,7 @@ function createWindow() {
     backgroundColor: "#f8fafc",
     titleBarStyle: "hiddenInset",
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
+      preload: path.join(currentDir, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
@@ -53,7 +55,7 @@ function createWindow() {
   if (isDev) {
     void mainWindow.loadURL("http://127.0.0.1:5173");
   } else {
-    void mainWindow.loadFile(path.join(__dirname, "../../dist/index.html"));
+    void mainWindow.loadFile(path.join(currentDir, "../../dist/index.html"));
   }
 }
 
@@ -125,7 +127,7 @@ ipcMain.handle("ai:analyze-prompt", async (_event, request: AiPromptAnalysisRequ
 ipcMain.handle("ai:test-connection", async () => testAnthropicConnection());
 
 async function testAnthropicConnection(): Promise<AiConnectionTestResult> {
-  const apiKey = getSetting("anthropic_api_key")?.trim();
+  const apiKey = sanitizeApiKey(getSetting("anthropic_api_key") ?? "");
   const model = getSetting("anthropic_model")?.trim() || "claude-sonnet-4-5-20250929";
 
   if (!apiKey) {
@@ -169,7 +171,7 @@ async function testAnthropicConnection(): Promise<AiConnectionTestResult> {
 }
 
 async function analyzePromptWithAnthropic(request: AiPromptAnalysisRequest): Promise<AiPromptAnalysisResult> {
-  const apiKey = getSetting("anthropic_api_key")?.trim();
+  const apiKey = sanitizeApiKey(getSetting("anthropic_api_key") ?? "");
   const model = getSetting("anthropic_model")?.trim() || "claude-sonnet-4-5-20250929";
 
   if (!apiKey) {
@@ -246,4 +248,8 @@ function parseJsonObject(value: string) {
     }
     return JSON.parse(match[0]);
   }
+}
+
+function sanitizeApiKey(value: string) {
+  return value.trim().replace(/\s/g, "").replace(/[^\x21-\x7E]/g, "");
 }

@@ -129,6 +129,8 @@ const systemFieldOptions: Array<Omit<FieldOption, "id">> = [
 ];
 
 const starterCategories: LibraryCategory[] = [
+  { id: "ideen", name: "Ideen", color: "#2563eb" },
+  { id: "technik", name: "Technik", color: "#0f766e" },
   { id: "marketing", name: "Marketing", color: "#2563eb" },
   { id: "vertrieb", name: "Vertrieb", color: "#059669" },
   { id: "kundenservice", name: "Kundenservice", color: "#0891b2" },

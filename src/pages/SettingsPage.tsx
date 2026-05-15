@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Archive, Database, Eye, EyeOff, HardDrive, KeyRound, ShieldCheck } from "lucide-react";
+import { Archive, BadgeCheck, Database, Eye, EyeOff, HardDrive, KeyRound, RefreshCw, Save, ShieldCheck, Unplug } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -121,7 +121,7 @@ export function SettingsPage({
   }
 
   async function handleSaveAiSettings() {
-    const apiKey = aiDraft.anthropicApiKey.trim();
+    const apiKey = sanitizeApiKey(aiDraft.anthropicApiKey);
 
     await saveAiSettings(apiKey, defaultAnthropicModel);
 
@@ -131,7 +131,7 @@ export function SettingsPage({
   }
 
   async function handleCheckAiConnection() {
-    const apiKey = aiDraft.anthropicApiKey.trim();
+    const apiKey = sanitizeApiKey(aiDraft.anthropicApiKey);
     await saveAiSettings(apiKey, defaultAnthropicModel);
     setAiDraft({ anthropicApiKey: apiKey });
 
@@ -237,9 +237,11 @@ export function SettingsPage({
 
         <section className="mt-8 rounded-lg border border-border bg-card p-6 shadow-sm">
           <div className="flex items-center justify-between gap-4">
-            <div>
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-background">
+                <BadgeCheck className="h-4 w-4 text-muted-foreground" />
+              </div>
               <h2 className="text-base font-semibold">Lizenz</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Version 1 speichert den Status lokal. Die API-Prüfung folgt später.</p>
             </div>
             <Badge>{statusLabel[draft.status]}</Badge>
           </div>
@@ -269,8 +271,11 @@ export function SettingsPage({
             </label>
           </div>
 
-          <div className="mt-6 flex justify-end">
-            <Button onClick={handleSave}>Lizenz speichern</Button>
+          <div className="mt-6 flex justify-end border-t border-border pt-4">
+            <Button onClick={handleSave} className="min-w-40">
+              <Save className="h-4 w-4" />
+              Lizenz speichern
+            </Button>
           </div>
         </section>
 
@@ -312,16 +317,25 @@ export function SettingsPage({
             </label>
           </div>
 
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs leading-5 text-muted-foreground">
+          <div className="mt-5 border-t border-border pt-4">
+            <p className="max-w-2xl text-xs leading-5 text-muted-foreground">
               Für die Verkaufsversion sollte der Key verschlüsselt im Betriebssystem-Schlüsselbund gespeichert werden. Diese Version speichert ihn lokal in den App-Einstellungen.
             </p>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={handleSaveAiSettings}>Speichern</Button>
-              <Button onClick={() => void handleCheckAiConnection()} variant="outline" disabled={isAiChecking}>
+            <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+              <Button onClick={handleSaveAiSettings} className="min-w-32">
+                <Save className="h-4 w-4" />
+                Speichern
+              </Button>
+              <Button onClick={() => void handleCheckAiConnection()} variant="outline" disabled={isAiChecking} className="min-w-52">
+                <RefreshCw className="h-4 w-4" />
                 Verbindung überprüfen
               </Button>
-              <Button onClick={() => void handleDisconnectAi()} variant="outline" className="text-rose-600 hover:text-rose-700">
+              <Button
+                onClick={() => void handleDisconnectAi()}
+                variant="outline"
+                className="min-w-48 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+              >
+                <Unplug className="h-4 w-4" />
                 Verbindung trennen
               </Button>
             </div>
@@ -330,11 +344,16 @@ export function SettingsPage({
         </section>
 
         <section className="mt-6 rounded-lg border border-border bg-card p-6 shadow-sm">
-          <div>
-            <h2 className="text-base font-semibold">Datenmanagement</h2>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              Übersicht darüber, was SMART SnippetFlow speichert und wie du deine Daten sichern kannst.
-            </p>
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-background">
+              <Database className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold">Datenmanagement</h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                Übersicht darüber, was SMART SnippetFlow speichert und wie du deine Daten sichern kannst.
+              </p>
+            </div>
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-3">
@@ -492,4 +511,8 @@ function formatBytes(bytes: number) {
   }
 
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function sanitizeApiKey(value: string) {
+  return value.trim().replace(/\s/g, "").replace(/[^\x21-\x7E]/g, "");
 }

@@ -439,13 +439,13 @@ export function LibraryPage({
           ]
         : currentVariants;
 
-    const categoryPatch = await resolveAiCategoryPatch(result.categoryName);
+    const categoryPatch = draft.categoryId ? {} : await resolveAiCategoryPatch(result.categoryName);
 
     if (mode === "metadata") {
       setDraft({
         ...draft,
-        title: result.title || draft.title,
-        description: result.description || draft.description,
+        title: shouldAutofillTitle(draft.title) && result.title ? result.title : draft.title,
+        description: !draft.description.trim() && result.description ? result.description : draft.description,
         tags: mergeTags(draft.tags, result.tags),
         ...categoryPatch,
         promptVariants: nextVariants,
@@ -839,10 +839,42 @@ export function LibraryPage({
             </div>
 
             <div className="mt-6 grid gap-4">
+              <EntryWorkflowSteps
+                entryType={draft.type}
+                hasContent={draft.content.trim().length > 0}
+                hasMetadata={Boolean(draft.description.trim() || draft.tags.length > 0 || draft.categoryName || draft.fieldValue)}
+                isSaved={!isDirty}
+              />
+
               <label className="grid gap-1 text-xs font-medium text-muted-foreground">
                 Titel
                 <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="h-11 text-xl font-semibold" />
               </label>
+
+              <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                Beschreibung
+                <textarea
+                  value={draft.description}
+                  onChange={(event) => setDraft({ ...draft, description: event.target.value })}
+                  placeholder="Beschreibung"
+                  className="min-h-14 resize-y rounded-md border border-input bg-background px-3 py-2 text-sm leading-6 outline-none focus:border-ring focus:ring-2 focus:ring-ring/15"
+                />
+              </label>
+
+              {draft.type === "prompt" && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2">
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    Füllt leere Titel-, Beschreibungs- und Kategoriefelder per KI. Bestehende manuelle Inhalte bleiben erhalten.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button type="button" onClick={() => void handleAnalyzePrompt()} variant="outline" disabled={isAiBusy}>
+                      <Sparkles className="h-4 w-4" />
+                      Titel & Metadaten ausfüllen
+                    </Button>
+                    {aiNotice && <span className="text-xs text-muted-foreground">{aiNotice}</span>}
+                  </div>
+                </div>
+              )}
 
               <div className={cn("grid gap-3", shouldShowPreview ? "grid-cols-3" : showAiSystemField ? "grid-cols-2" : "grid-cols-1")}>
                 <label className="grid gap-1 text-xs font-medium text-muted-foreground">
@@ -1009,41 +1041,7 @@ export function LibraryPage({
                   </div>
                 )}
 
-                {draft.type === "prompt" && (
-                  <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-                    <Button type="button" onClick={() => void handleAnalyzePrompt()} variant="outline" disabled={isAiBusy}>
-                      <Sparkles className="h-4 w-4" />
-                      KI vorschlagen
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => void handleCreateAiVariant()}
-                      variant="outline"
-                      disabled={isAiBusy || promptVariants.length >= 3}
-                    >
-                      <Sparkles className="h-4 w-4" />
-                      KI-Variante
-                    </Button>
-                    <Button type="button" onClick={addManualPromptVariant} variant="outline" disabled={promptVariants.length >= 3}>
-                      <Plus className="h-4 w-4" />
-                      Leere Variante
-                    </Button>
-                    <span className="text-xs text-muted-foreground">
-                      {aiNotice ?? `${promptVariants.length}/3 Varianten`}
-                    </span>
-                  </div>
-                )}
               </div>
-
-              <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                Beschreibung
-                <textarea
-                  value={draft.description}
-                  onChange={(event) => setDraft({ ...draft, description: event.target.value })}
-                  placeholder="Beschreibung"
-                  className="min-h-14 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm leading-6 outline-none focus:border-ring focus:ring-2 focus:ring-ring/15"
-                />
-              </label>
             </div>
           </header>
 
@@ -1054,7 +1052,11 @@ export function LibraryPage({
             <div
               className={cn(
                 "grid min-h-0 gap-1",
-                activePromptVariant ? "grid-rows-[auto_auto_minmax(0,1fr)]" : "grid-rows-[auto_minmax(0,1fr)]",
+                draft.type === "prompt" && activePromptVariant
+                  ? "grid-rows-[auto_auto_auto_minmax(0,1fr)]"
+                  : draft.type === "prompt"
+                    ? "grid-rows-[auto_auto_minmax(0,1fr)]"
+                    : "grid-rows-[auto_minmax(0,1fr)]",
               )}
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1092,6 +1094,14 @@ export function LibraryPage({
                   </div>
                 )}
               </div>
+              {draft.type === "prompt" && (
+                <PromptVariantWorkflowSteps
+                  variantCount={promptVariants.length}
+                  isBusy={isAiBusy}
+                  onCreateAiVariant={() => void handleCreateAiVariant()}
+                  onAddManualVariant={addManualPromptVariant}
+                />
+              )}
               {activePromptVariant && (
                 <div className="mb-2 grid grid-cols-[minmax(0,1fr)_140px_auto_auto] gap-2">
                   <Input
@@ -1424,6 +1434,116 @@ function DashboardList({
   );
 }
 
+function EntryWorkflowSteps({
+  entryType,
+  hasContent,
+  hasMetadata,
+  isSaved,
+}: {
+  entryType: EntryType;
+  hasContent: boolean;
+  hasMetadata: boolean;
+  isSaved: boolean;
+}) {
+  const contentLabels: Record<EntryType, string> = {
+    prompt: "Prompt eingeben",
+    code: "Code eingeben",
+    workflow: "Workflow eingeben",
+    note: "Notiz eingeben",
+  };
+  const metadataStep =
+    entryType === "prompt"
+      ? { label: "Titel & Metadaten per KI ausfüllen", hint: "Leere Felder werden ergänzt" }
+      : { label: "Titel & Metadaten ergänzen", hint: "Beschreibung, Kategorie, Tags" };
+  const steps = [
+    { label: contentLabels[entryType], hint: "Inhalt erfassen", done: hasContent },
+    { ...metadataStep, done: hasMetadata },
+    { label: "Speichern", hint: "Eintrag sichern", done: isSaved },
+  ];
+
+  return (
+    <div className="rounded-lg border border-border bg-background px-3 py-2">
+      <div className="grid grid-cols-3 gap-3">
+        {steps.map((step, index) => (
+          <div key={step.label} className="flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-md border border-border/70 bg-card px-2 py-2 text-center">
+            <span className="flex min-w-0 items-center justify-center gap-1.5">
+              <span
+                className={cn(
+                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold",
+                  step.done ? "border-emerald-500 bg-emerald-600 text-white" : "border-slate-400 bg-slate-100 text-slate-700",
+                )}
+              >
+                {index + 1}
+              </span>
+              <span className={cn("block text-xs font-medium leading-4", step.done ? "text-foreground" : "text-muted-foreground")}>{step.label}</span>
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-[10px] text-muted-foreground">{step.hint}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PromptVariantWorkflowSteps({
+  variantCount,
+  isBusy,
+  onCreateAiVariant,
+  onAddManualVariant,
+}: {
+  variantCount: number;
+  isBusy: boolean;
+  onCreateAiVariant: () => void;
+  onAddManualVariant: () => void;
+}) {
+  const steps = [
+    { label: "Variante erstellen", hint: "Button: KI-Variante", done: variantCount > 0 },
+    { label: "Variante vergleichen", hint: "Original oder Variante wählen", done: variantCount > 0 },
+    { label: "Variante übernehmen", hint: "Als Original", done: false },
+  ];
+
+  return (
+    <div className="rounded-lg border border-border bg-background px-3 py-2">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs font-semibold text-foreground">Varianten-Workflow</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" onClick={onCreateAiVariant} variant="outline" disabled={isBusy || variantCount >= 3} className="h-8">
+            <Sparkles className="h-4 w-4" />
+            KI-Variante
+          </Button>
+          <Button type="button" onClick={onAddManualVariant} variant="outline" disabled={variantCount >= 3} className="h-8">
+            <Plus className="h-4 w-4" />
+            Leere Variante
+          </Button>
+          <span className="text-[11px] text-muted-foreground">{variantCount}/3 Varianten</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        {steps.map((step, index) => (
+          <div key={step.label} className="flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-md border border-border/70 bg-card px-2 py-2 text-center">
+            <span className="flex min-w-0 items-center justify-center gap-1.5">
+              <span
+                className={cn(
+                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold",
+                  step.done ? "border-emerald-500 bg-emerald-600 text-white" : "border-slate-400 bg-slate-100 text-slate-700",
+                )}
+              >
+                {index + 1}
+              </span>
+              <span className={cn("block text-xs font-medium leading-4", step.done ? "text-foreground" : "text-muted-foreground")}>{step.label}</span>
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-[10px] text-muted-foreground">{step.hint}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ConfirmDialog({
   title,
   description,
@@ -1483,6 +1603,11 @@ function mergeTags(existingTags: string[], suggestedTags: string[]) {
     .map((tag) => tag.trim())
     .filter(Boolean);
   return [...new Set(normalized)].slice(0, 12);
+}
+
+function shouldAutofillTitle(title: string) {
+  const normalizedTitle = title.trim().toLowerCase();
+  return !normalizedTitle || normalizedTitle === "neuer eintrag" || normalizedTitle === "unbenannter eintrag";
 }
 
 function sortEntries(entries: LibraryEntry[], sortMode: "recent" | "title") {
