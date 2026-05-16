@@ -280,15 +280,67 @@ async function analyzePromptWithAnthropic(request: AiPromptAnalysisRequest): Pro
 }
 
 function parseJsonObject(value: string) {
-  try {
-    return JSON.parse(value);
-  } catch {
-    const match = value.match(/\{[\s\S]*\}/);
-    if (!match) {
-      throw new Error("KI-Antwort enthielt kein gültiges JSON.");
+  const candidates = [
+    value.trim(),
+    ...Array.from(value.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi), (match) => match[1].trim()),
+    ...extractJsonObjectCandidates(value),
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      // Try the next candidate below.
     }
-    return JSON.parse(match[0]);
   }
+
+  throw new Error("KI-Antwort konnte nicht als JSON verarbeitet werden. Bitte erneut versuchen.");
+}
+
+function extractJsonObjectCandidates(value: string) {
+  const candidates: string[] = [];
+
+  for (let start = value.indexOf("{"); start !== -1; start = value.indexOf("{", start + 1)) {
+    let depth = 0;
+    let isInString = false;
+    let isEscaped = false;
+
+    for (let index = start; index < value.length; index += 1) {
+      const char = value[index];
+
+      if (isEscaped) {
+        isEscaped = false;
+        continue;
+      }
+
+      if (char === "\\") {
+        isEscaped = true;
+        continue;
+      }
+
+      if (char === "\"") {
+        isInString = !isInString;
+        continue;
+      }
+
+      if (isInString) {
+        continue;
+      }
+
+      if (char === "{") {
+        depth += 1;
+      } else if (char === "}") {
+        depth -= 1;
+      }
+
+      if (depth === 0) {
+        candidates.push(value.slice(start, index + 1));
+        break;
+      }
+    }
+  }
+
+  return candidates;
 }
 
 function sanitizeApiKey(value: string) {
