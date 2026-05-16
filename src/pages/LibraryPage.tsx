@@ -1029,7 +1029,7 @@ export function LibraryPage({
               </div>
 
               <div className="grid gap-3 rounded-lg border border-border bg-background p-4">
-                <div className="grid grid-cols-[minmax(0,1fr)_132px_220px_40px_40px] gap-3">
+                <div className="grid grid-cols-[minmax(0,1fr)_168px_184px_40px_40px] gap-3">
                   <div className="relative">
                     <Input
                       value={tagInput}
@@ -1071,7 +1071,7 @@ export function LibraryPage({
                     type="button"
                     onClick={() => setIsTagCloudOpen((current) => !current)}
                     variant="outline"
-                    className="justify-between px-3"
+                    className="justify-between px-3 whitespace-nowrap"
                     title="Tag-Cloud"
                     aria-label="Tag-Cloud"
                   >
