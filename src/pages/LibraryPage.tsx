@@ -87,6 +87,7 @@ export function LibraryPage({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [didCopy, setDidCopy] = useState(false);
+  const [didSave, setDidSave] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [tagInput, setTagInput] = useState("");
   const [pendingSelectionId, setPendingSelectionId] = useState<string | null>(null);
@@ -217,6 +218,12 @@ export function LibraryPage({
     onDirtyChange(isDirty);
   }, [isDirty, onDirtyChange]);
 
+  useEffect(() => {
+    if (isDirty) {
+      setDidSave(false);
+    }
+  }, [isDirty]);
+
   function showNotice(message: string) {
     setNotice(message);
     window.setTimeout(() => setNotice(null), 2200);
@@ -257,6 +264,8 @@ export function LibraryPage({
     const saved = await saveEntry(draft);
     setSelectedId(saved.id);
     setDraft(saved);
+    setDidSave(true);
+    window.setTimeout(() => setDidSave(false), 1600);
     showNotice("Gespeichert");
   }
 
@@ -916,8 +925,15 @@ export function LibraryPage({
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <HeaderIconButton label="Speichern" onClick={handleSave}>
-                  <Save className="h-4 w-4" />
+                <HeaderIconButton
+                  label={didSave && !isDirty ? "Gespeichert" : "Speichern"}
+                  onClick={handleSave}
+                  className={cn(
+                    isDirty && "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800",
+                    didSave && !isDirty && "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-700",
+                  )}
+                >
+                  {didSave && !isDirty ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
                 </HeaderIconButton>
                 <HeaderIconButton label="Änderungen verwerfen" onClick={handleDiscard} disabled={!isDirty}>
                   <RotateCcw className="h-4 w-4" />
