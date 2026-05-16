@@ -229,7 +229,46 @@ async function analyzePromptWithAnthropic(request: AiPromptAnalysisRequest): Pro
         max_tokens: 2500,
         temperature: 0.4,
         system:
-        "Du bist ein präziser deutschsprachiger Assistent für Metadaten, Struktur und Varianten. Antworte ausschließlich als valides JSON ohne Markdown-Codeblock.",
+        "Du bist ein präziser deutschsprachiger Assistent für Metadaten, Struktur und Varianten. Nutze ausschließlich das vorgegebene Tool, um dein Ergebnis strukturiert zurückzugeben.",
+        tools: [
+          {
+            name: "format_snippetflow_metadata",
+            description: "Gibt strukturierte Metadaten und optionale Prompt-Varianten für SMART SnippetFlow zurück.",
+            input_schema: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                title: { type: "string", description: "Kurzer professioneller Titel." },
+                description: { type: "string", description: "Kurze Beschreibung des Inhalts." },
+                tags: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Bis zu sechs kurze Tags.",
+                },
+                categoryName: {
+                  type: "string",
+                  description: "Passender Kategoriename.",
+                },
+                variants: {
+                  type: "array",
+                  description: "Nur für Prompts: verbesserte Varianten. Für andere Typen leer.",
+                  items: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                      label: { type: "string" },
+                      content: { type: "string" },
+                      note: { type: "string" },
+                    },
+                    required: ["label", "content"],
+                  },
+                },
+              },
+              required: ["title", "description", "tags", "categoryName", "variants"],
+            },
+          },
+        ],
+        tool_choice: { type: "tool", name: "format_snippetflow_metadata" },
         messages: [
           {
             role: "user",
@@ -257,9 +296,18 @@ async function analyzePromptWithAnthropic(request: AiPromptAnalysisRequest): Pro
     throw new Error(`Anthropic API-Fehler: ${response.status} ${message}`);
   }
 
-  const payload = (await response.json()) as { content?: Array<{ type: string; text?: string }> };
-  const text = payload.content?.find((block) => block.type === "text")?.text ?? "";
-  const parsed = parseJsonObject(text) as Partial<AiPromptAnalysisResult>;
+  const payload = (await response.json()) as {
+    content?: Array<
+      | { type: "text"; text?: string }
+      | { type: "tool_use"; name?: string; input?: unknown }
+    >;
+  };
+  const toolResult = payload.content?.find(
+    (block) => block.type === "tool_use" && block.name === "format_snippetflow_metadata",
+  );
+  const parsed = toolResult && "input" in toolResult && toolResult.input
+    ? toolResult.input as Partial<AiPromptAnalysisResult>
+    : parseJsonObject(payload.content?.find((block) => block.type === "text")?.text ?? "") as Partial<AiPromptAnalysisResult>;
 
   return {
     title: String(parsed.title ?? "").trim(),
