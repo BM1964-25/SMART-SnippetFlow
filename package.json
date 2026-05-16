@@ -13,6 +13,7 @@
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac dmg zip",
     "dist:win": "npm run build && electron-builder --win nsis --x64",
+    "icons": "node scripts/generate-icons.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.electron.json --noEmit"
   },
@@ -29,6 +30,20 @@
       "dist-electron/**/*",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "build/icon.png",
+        "to": "assets/icon.png"
+      },
+      {
+        "from": "build/icon.ico",
+        "to": "assets/icon.ico"
+      },
+      {
+        "from": "build/icon.icns",
+        "to": "assets/icon.icns"
+      }
+    ],
     "asarUnpack": [
       "node_modules/better-sqlite3/**/*"
     ],
@@ -38,7 +53,7 @@
         "dmg",
         "zip"
       ],
-      "icon": "build/icon.png",
+      "icon": "build/icon.icns",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
@@ -52,6 +67,13 @@
         "nsis"
       ],
       "icon": "build/icon.ico"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "build/icon.png",
+      "category": "Utility"
     },
     "nsis": {
       "oneClick": false,

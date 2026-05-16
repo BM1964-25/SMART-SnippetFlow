@@ -1,7 +1,7 @@
 import path from "node:path";
 import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } from "electron";
 import {
   createExportPayload,
   createFieldOption,
@@ -30,6 +30,18 @@ const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
 app.setName("SMART SnippetFlow");
 
+function getRuntimeIconPath(extension: "png" | "ico" | "icns") {
+  if (isDev) {
+    return path.join(currentDir, `../../build/icon.${extension}`);
+  }
+
+  return path.join(process.resourcesPath, `assets/icon.${extension}`);
+}
+
+function getWindowIconPath() {
+  return process.platform === "win32" ? getRuntimeIconPath("ico") : getRuntimeIconPath("png");
+}
+
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1440,
@@ -39,6 +51,7 @@ function createWindow() {
     title: "SMART SnippetFlow",
     backgroundColor: "#f8fafc",
     titleBarStyle: "hiddenInset",
+    icon: getWindowIconPath(),
     webPreferences: {
       preload: path.join(currentDir, "preload.js"),
       contextIsolation: true,
@@ -60,6 +73,13 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  if (process.platform === "darwin") {
+    const dockIcon = nativeImage.createFromPath(getRuntimeIconPath("png"));
+    if (!dockIcon.isEmpty()) {
+      app.dock?.setIcon(dockIcon);
+    }
+  }
+
   initializeDatabase();
   createWindow();
 
