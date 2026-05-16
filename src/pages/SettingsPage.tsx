@@ -11,7 +11,7 @@ import {
   writeBrowserLicense,
   writeBrowserSetting,
 } from "@/services/browserStorage";
-import type { AppSetting, EntryType, FieldOption, LibraryCategory, LibraryEntry, LicenseState, LicenseStatus } from "@/types";
+import type { ApiStatus, AppSetting, EntryType, FieldOption, LibraryCategory, LibraryEntry, LicenseState, LicenseStatus } from "@/types";
 
 const statusLabel: Record<LicenseStatus, string> = {
   active: "Aktiv",
@@ -54,9 +54,11 @@ const defaultAnthropicModel = "claude-sonnet-4-5-20250929";
 
 export function SettingsPage({
   license,
+  onApiStatusChange,
   onLicenseChange,
 }: {
   license: LicenseState;
+  onApiStatusChange: (status: ApiStatus) => void;
   onLicenseChange: (license: LicenseState) => void;
 }) {
   const [draft, setDraft] = useState(license);
@@ -127,6 +129,7 @@ export function SettingsPage({
     await saveAiSettings(apiKey, defaultAnthropicModel);
 
     setAiDraft({ anthropicApiKey: apiKey });
+    onApiStatusChange(apiKey ? "active" : "missing");
     setAiConnectionState(apiKey ? "unknown" : "failed");
     setAiNotice("KI-Einstellungen gespeichert");
     window.setTimeout(() => setAiNotice(null), 2200);
@@ -136,6 +139,7 @@ export function SettingsPage({
     const apiKey = sanitizeApiKey(aiDraft.anthropicApiKey);
     await saveAiSettings(apiKey, defaultAnthropicModel);
     setAiDraft({ anthropicApiKey: apiKey });
+    onApiStatusChange(apiKey ? "active" : "missing");
 
     if (!window.snippetFlow?.ai?.testConnection) {
       setAiNotice("Verbindung kann nur in der Desktop-App geprüft werden.");
@@ -159,6 +163,7 @@ export function SettingsPage({
   async function handleDisconnectAi() {
     await saveAiSettings("", defaultAnthropicModel);
     setAiDraft({ anthropicApiKey: "" });
+    onApiStatusChange("missing");
     setAiConnectionState("unknown");
     setAiNotice("Verbindung getrennt. Der API-Key wurde lokal gelöscht.");
   }

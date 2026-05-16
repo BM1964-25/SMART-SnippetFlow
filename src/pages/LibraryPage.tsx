@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLibraryEntries } from "@/hooks/useLibraryEntries";
 import { createPreviewDescriptor, createSandboxPreviewHtml } from "@/services/preview";
-import type { AiPromptAnalysisResult, AppView, EntryType, FieldOptionKey, LibraryEntry, PreviewKind, PromptVariant } from "@/types";
+import type { AiPromptAnalysisResult, ApiStatus, AppView, EntryType, FieldOptionKey, LibraryEntry, PreviewKind, PromptVariant } from "@/types";
 import { cn } from "@/utils/cn";
 
 const filters: Array<{ label: string; value: EntryType | "all" }> = [
@@ -62,9 +62,11 @@ const viewDescription: Record<Exclude<AppView, "settings">, string> = {
 
 export function LibraryPage({
   activeView,
+  apiStatus,
   onDirtyChange,
 }: {
   activeView: Exclude<AppView, "settings">;
+  apiStatus: ApiStatus;
   onDirtyChange: (isDirty: boolean) => void;
 }) {
   const defaultType =
@@ -805,7 +807,7 @@ export function LibraryPage({
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
           {activeView === "all" && (
             <div className="mb-4 grid gap-3">
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-6 gap-2">
                 {dashboardStats.map((stat) => (
                   <div
                     key={stat.label}
@@ -815,6 +817,12 @@ export function LibraryPage({
                     <p className="mt-1 text-xl font-semibold">{stat.value}</p>
                   </div>
                 ))}
+                <div className="flex min-h-20 flex-col items-center justify-center rounded-lg border border-border bg-card p-3 text-center shadow-sm">
+                  <p className="text-[11px] text-muted-foreground">API</p>
+                  <p className={cn("mt-1 text-sm font-semibold", apiStatus === "active" ? "text-emerald-600" : "text-muted-foreground")}>
+                    {apiStatus === "active" ? "Aktiv" : "Fehlt"}
+                  </p>
+                </div>
               </div>
               <div className="grid gap-2">
                 <DashboardList

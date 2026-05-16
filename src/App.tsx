@@ -3,17 +3,25 @@ import { AppShell } from "@/layout/AppShell";
 import { HelpPage } from "@/pages/HelpPage";
 import { LibraryPage } from "@/pages/LibraryPage";
 import { SettingsPage } from "@/pages/SettingsPage";
-import type { AppView, LicenseState } from "@/types";
+import { readBrowserSetting } from "@/services/browserStorage";
+import type { ApiStatus, AppView, LicenseState } from "@/types";
 
 export default function App() {
   const [activeView, setActiveView] = useState<AppView>("all");
   const [license, setLicense] = useState<LicenseState>({ key: "", status: "invalid", expiresAt: null });
+  const [apiStatus, setApiStatus] = useState<ApiStatus>("missing");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [pendingView, setPendingView] = useState<AppView | null>(null);
 
   useEffect(() => {
     void window.snippetFlow?.license.get().then(setLicense);
+    void loadApiStatus();
   }, []);
+
+  async function loadApiStatus() {
+    const apiKey = await (window.snippetFlow?.settings?.get("anthropic_api_key") ?? Promise.resolve(readBrowserSetting("anthropic_api_key")));
+    setApiStatus(apiKey?.trim() ? "active" : "missing");
+  }
 
   function requestViewChange(view: AppView) {
     if (view === activeView) {
@@ -37,13 +45,13 @@ export default function App() {
   }
 
   return (
-    <AppShell activeView={activeView} licenseStatus={license.status} onViewChange={requestViewChange}>
+    <AppShell activeView={activeView} apiStatus={apiStatus} licenseStatus={license.status} onViewChange={requestViewChange}>
       {activeView === "settings" ? (
-        <SettingsPage license={license} onLicenseChange={setLicense} />
+        <SettingsPage license={license} onApiStatusChange={setApiStatus} onLicenseChange={setLicense} />
       ) : activeView === "help" ? (
         <HelpPage onNavigate={requestViewChange} />
       ) : (
-        <LibraryPage activeView={activeView} onDirtyChange={setHasUnsavedChanges} />
+        <LibraryPage activeView={activeView} apiStatus={apiStatus} onDirtyChange={setHasUnsavedChanges} />
       )}
       {pendingView && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/20 px-4">

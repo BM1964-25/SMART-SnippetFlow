@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { CircleHelp, Code2, Library, MessageSquareText, NotebookText, PanelLeftClose, PanelLeftOpen, Settings, Star, Workflow } from "lucide-react";
 import appLogo from "@/assets/app-logo.png";
-import type { AppView, LicenseStatus } from "@/types";
+import type { ApiStatus, AppView, LicenseStatus } from "@/types";
 import { cn } from "@/utils/cn";
 
 const navItems = [
@@ -21,13 +21,20 @@ const licenseLabel: Record<LicenseStatus, string> = {
   invalid: "Nicht aktiviert",
 };
 
+const apiLabel: Record<ApiStatus, string> = {
+  active: "API aktiv",
+  missing: "API fehlt",
+};
+
 export function AppShell({
   activeView,
+  apiStatus,
   licenseStatus,
   onViewChange,
   children,
 }: {
   activeView: AppView;
+  apiStatus: ApiStatus;
   licenseStatus: LicenseStatus;
   onViewChange: (view: AppView) => void;
   children: ReactNode;
@@ -86,6 +93,13 @@ export function AppShell({
         <div className={cn("mt-3 rounded-md border border-border bg-background p-3", isCollapsed && "hidden")}>
           <p className="text-xs font-medium">Lizenz</p>
           <p className="mt-1 text-xs text-muted-foreground">{licenseLabel[licenseStatus]}</p>
+          <div className="mt-3 border-t border-border pt-3">
+            <p className="text-xs font-medium">KI</p>
+            <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+              <span className={cn("h-2 w-2 rounded-full", apiStatus === "active" ? "bg-emerald-500" : "bg-slate-300")} />
+              {apiLabel[apiStatus]}
+            </p>
+          </div>
         </div>
       </aside>
 

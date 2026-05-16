@@ -1,6 +1,7 @@
 export type EntryType = "prompt" | "code" | "workflow" | "note";
 export type PreviewKind = "html" | "css" | "javascript" | "markdown";
 export type LicenseStatus = "active" | "expired" | "invalid";
+export type ApiStatus = "active" | "missing";
 export type AppView = "all" | "prompts" | "code" | "workflows" | "notes" | "favorites" | "settings" | "help";
 export type ExportFormat = "json" | "markdown" | "txt";
 export type FieldOptionKey = "prompt" | "code" | "text" | "analysis";
