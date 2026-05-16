@@ -125,9 +125,10 @@ ipcMain.handle("license:get", () => getLicenseState());
 ipcMain.handle("license:save", (_event, license: LicenseState) => saveLicenseState(license));
 ipcMain.handle("export:json", async () => {
   const payload = createExportPayload("json");
+  const defaultPath = await getNextAvailableExportPath(app.getPath("downloads"), payload.fileName);
   const result = await dialog.showSaveDialog({
     title: "SMART SnippetFlow JSON exportieren",
-    defaultPath: path.join(app.getPath("downloads"), payload.fileName),
+    defaultPath,
     filters: [{ name: "JSON", extensions: ["json"] }],
   });
 
@@ -138,6 +139,30 @@ ipcMain.handle("export:json", async () => {
   await fs.writeFile(result.filePath, payload.content, "utf-8");
   return { canceled: false as const, filePath: result.filePath };
 });
+
+async function getNextAvailableExportPath(directory: string, fileName: string) {
+  const extension = path.extname(fileName);
+  const baseName = path.basename(fileName, extension);
+  let candidate = path.join(directory, fileName);
+  let index = 2;
+
+  while (await pathExists(candidate)) {
+    candidate = path.join(directory, `${baseName}-${index}${extension}`);
+    index += 1;
+  }
+
+  return candidate;
+}
+
+async function pathExists(filePath: string) {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 ipcMain.handle("import:json", async () => {
   const result = await dialog.showOpenDialog({
     title: "SMART SnippetFlow JSON importieren",
