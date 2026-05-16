@@ -50,7 +50,6 @@ function createWindow() {
     minHeight: 720,
     title: "SMART SnippetFlow",
     backgroundColor: "#f8fafc",
-    titleBarStyle: "hiddenInset",
     icon: getWindowIconPath(),
     webPreferences: {
       preload: path.join(currentDir, "preload.js"),
@@ -63,6 +62,18 @@ function createWindow() {
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url);
     return { action: "deny" };
+  });
+
+  mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
+    console.error("Renderer load failed:", errorCode, errorDescription, validatedURL);
+  });
+
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    console.error("Renderer process gone:", details.reason, details.exitCode);
+  });
+
+  mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+    console.log("Renderer console:", { level, message, line, sourceId });
   });
 
   if (isDev) {
