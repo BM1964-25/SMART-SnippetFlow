@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Archive, BadgeCheck, Database, Eye, EyeOff, HardDrive, KeyRound, RefreshCw, Save, ShieldCheck, Unplug } from "lucide-react";
+import { Archive, BadgeCheck, Database, Download, Eye, EyeOff, HardDrive, KeyRound, RefreshCw, Save, ShieldCheck, Unplug, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -447,18 +447,18 @@ export function SettingsPage({
           </div>
 
           <div className="mt-6 rounded-lg border border-dashed border-border bg-background p-4">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="grid gap-4">
               <div>
                 <h3 className="text-sm font-semibold">Manuelle Sicherung</h3>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
                   JSON eignet sich für Backups, Bereichsexporte und den späteren Umzug auf ein anderes System.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <select
                   value={exportScope}
                   onChange={(event) => setExportScope(event.target.value as EntryType | "all")}
-                  className="h-10 rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/15"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/15"
                 >
                   {exportScopeOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -466,8 +466,14 @@ export function SettingsPage({
                     </option>
                   ))}
                 </select>
-                <Button onClick={handleExportJson}>JSON exportieren</Button>
-                <Button onClick={handleImportJson} variant="outline">JSON importieren</Button>
+                <Button onClick={handleExportJson} className="w-full justify-center">
+                  <Download className="h-4 w-4" />
+                  JSON exportieren
+                </Button>
+                <Button onClick={handleImportJson} variant="outline" className="w-full justify-center">
+                  <Upload className="h-4 w-4" />
+                  JSON importieren
+                </Button>
                 <input
                   ref={importInputRef}
                   type="file"
