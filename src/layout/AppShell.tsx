@@ -1,12 +1,12 @@
 import { useState, type ReactNode } from "react";
-import { CircleHelp, Code2, Library, NotebookText, PanelLeftClose, PanelLeftOpen, Settings, Star, Workflow } from "lucide-react";
+import { CircleHelp, Code2, Library, MessageSquareText, NotebookText, PanelLeftClose, PanelLeftOpen, Settings, Star, Workflow } from "lucide-react";
 import appLogo from "@/assets/app-logo.png";
 import type { AppView, LicenseStatus } from "@/types";
 import { cn } from "@/utils/cn";
 
 const navItems = [
   { id: "all", label: "Alle", icon: Library },
-  { id: "prompts", label: "Prompts", icon: Library },
+  { id: "prompts", label: "Prompts", icon: MessageSquareText },
   { id: "code", label: "Code", icon: Code2 },
   { id: "workflows", label: "Workflows", icon: Workflow },
   { id: "notes", label: "Notizen", icon: NotebookText },
