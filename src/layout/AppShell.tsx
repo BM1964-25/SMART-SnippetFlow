@@ -30,7 +30,6 @@ const legalLinks = [
   { label: "Impressum", href: "https://www.built-smart-hub.com/impressum" },
   { label: "Datenschutz", href: "https://www.built-smart-hub.com/datenschutz" },
   { label: "AGB", href: "https://www.built-smart-hub.com/agb" },
-  { label: "Lizenzbedingungen", href: "https://www.built-smart-hub.com/firmenlizenzen-smart-knowledge-library" },
 ];
 
 export function AppShell({
