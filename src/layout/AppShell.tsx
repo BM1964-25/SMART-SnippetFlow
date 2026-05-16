@@ -26,6 +26,13 @@ const apiLabel: Record<ApiStatus, string> = {
   missing: "API fehlt",
 };
 
+const legalLinks = [
+  { label: "Impressum", href: "https://www.built-smart-hub.com/impressum" },
+  { label: "Datenschutz", href: "https://www.built-smart-hub.com/datenschutz" },
+  { label: "AGB", href: "https://www.built-smart-hub.com/agb" },
+  { label: "Lizenzbedingungen", href: "https://www.built-smart-hub.com/firmenlizenzen-smart-knowledge-library" },
+];
+
 export function AppShell({
   activeView,
   apiStatus,
@@ -101,6 +108,26 @@ export function AppShell({
             </p>
           </div>
         </div>
+
+        <footer className={cn("mt-4 border-t border-border pt-3 text-[11px] leading-5 text-muted-foreground", isCollapsed && "hidden")}>
+          <p>© 2026 BuiltSmart Hub</p>
+          <p>Powered by SmartBuilt-AI</p>
+          <div className="mt-2 flex flex-wrap gap-x-1.5 gap-y-1">
+            {legalLinks.map((link, index) => (
+              <span key={link.href} className="inline-flex items-center gap-1.5">
+                {index > 0 && <span aria-hidden="true">·</span>}
+                <a
+                  href={link.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline-offset-2 hover:text-foreground hover:underline"
+                >
+                  {link.label}
+                </a>
+              </span>
+            ))}
+          </div>
+        </footer>
       </aside>
 
       <main className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</main>
