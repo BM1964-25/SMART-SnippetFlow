@@ -1,11 +1,12 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sourceIcon = path.join(rootDir, "src/assets/app-logo.png");
 const buildDir = path.join(rootDir, "build");
+const publicDir = path.join(rootDir, "public");
 const iconsetDir = path.join(buildDir, "icon.iconset");
 const masterIcon = path.join(buildDir, "icon.png");
 const macIcon = path.join(buildDir, "icon.icns");
@@ -102,6 +103,7 @@ if (!existsSync(sourceIcon)) {
 }
 
 mkdirSync(buildDir, { recursive: true });
+mkdirSync(publicDir, { recursive: true });
 rmSync(iconsetDir, { recursive: true, force: true });
 mkdirSync(iconsetDir, { recursive: true });
 
@@ -138,7 +140,19 @@ const icoPngs = icoSizes.map((size) => {
 createIco(icoPngs, winIcon);
 rmSync(icoTempDir, { recursive: true, force: true });
 
+copyFileSync(winIcon, path.join(publicDir, "favicon.ico"));
+resizePng(masterIcon, path.join(publicDir, "favicon-16x16.png"), 16);
+resizePng(masterIcon, path.join(publicDir, "favicon-32x32.png"), 32);
+resizePng(masterIcon, path.join(publicDir, "apple-touch-icon.png"), 180);
+resizePng(masterIcon, path.join(publicDir, "icon-192.png"), 192);
+resizePng(masterIcon, path.join(publicDir, "icon-512.png"), 512);
+
 console.log("Generated platform icons:");
 console.log(`- ${path.relative(rootDir, masterIcon)}`);
 console.log(`- ${path.relative(rootDir, macIcon)}`);
 console.log(`- ${path.relative(rootDir, winIcon)}`);
+console.log("Generated web icons:");
+console.log("- public/favicon.ico");
+console.log("- public/apple-touch-icon.png");
+console.log("- public/icon-192.png");
+console.log("- public/icon-512.png");
