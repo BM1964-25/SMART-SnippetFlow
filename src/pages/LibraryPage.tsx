@@ -1577,6 +1577,11 @@ function HeaderIconButton({
   className?: string;
   children: ReactNode;
 }) {
+  const baseClassName =
+    chrome === "ghost"
+      ? "h-9 w-9 border border-transparent bg-transparent p-0 text-muted-foreground shadow-none hover:bg-muted/70 hover:text-foreground"
+      : "h-12 w-12";
+
   return (
     <div className="group relative">
       <Button
@@ -1584,7 +1589,7 @@ function HeaderIconButton({
         variant={chrome}
         disabled={disabled}
         aria-label={label}
-        className={cn("h-12 w-12", className)}
+        className={cn(baseClassName, className)}
       >
         {children}
       </Button>
