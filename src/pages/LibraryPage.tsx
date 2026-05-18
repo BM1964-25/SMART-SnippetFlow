@@ -930,44 +930,38 @@ export function LibraryPage({
                   <p className="mt-1 max-w-full truncate text-sm text-muted-foreground">{editorDescription[draft.type]}</p>
                 </div>
               </div>
-              <div className="flex shrink-0 flex-wrap items-center justify-end gap-3">
-                <div className="flex gap-1">
-                  <HeaderIconButton
-                    label={didSave && !isDirty ? "Gespeichert" : "Speichern"}
-                    onClick={handleSave}
-                    chrome="ghost"
-                    className={cn(
-                      isDirty && "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800",
-                      didSave && !isDirty && "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-700",
-                    )}
-                  >
-                    {didSave && !isDirty ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
-                  </HeaderIconButton>
-                  <HeaderIconButton label="Änderungen verwerfen" onClick={handleDiscard} disabled={!isDirty} chrome="ghost">
-                    <RotateCcw className="h-4 w-4" />
-                  </HeaderIconButton>
-                </div>
-                <div className="flex gap-1">
-                  <HeaderIconButton
-                    label={didCopy ? "Kopiert" : "Kopieren"}
-                    onClick={handleCopy}
-                    chrome="ghost"
-                    className={cn(didCopy && "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-700")}
-                  >
-                    {didCopy ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  </HeaderIconButton>
-                  <HeaderIconButton label="Duplizieren" onClick={handleDuplicate} chrome="ghost">
-                    <FilePlus2 className="h-4 w-4" />
-                  </HeaderIconButton>
-                </div>
-                <div className="flex gap-1">
-                  <HeaderIconButton label="Favorit" onClick={handleFavorite} chrome="ghost">
-                    <Star className={cn("h-4 w-4", draft.isFavorite && "fill-amber-400 text-amber-500")} />
-                  </HeaderIconButton>
-                  <HeaderIconButton label="Löschen" onClick={handleDelete} chrome="ghost">
-                    <Trash2 className="h-4 w-4" />
-                  </HeaderIconButton>
-                </div>
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-0.5">
+                <HeaderIconButton
+                  label={didSave && !isDirty ? "Gespeichert" : "Speichern"}
+                  onClick={handleSave}
+                  chrome="ghost"
+                  className={cn(
+                    isDirty && "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800",
+                    didSave && !isDirty && "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-700",
+                  )}
+                >
+                  {didSave && !isDirty ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+                </HeaderIconButton>
+                <HeaderIconButton label="Änderungen verwerfen" onClick={handleDiscard} disabled={!isDirty} chrome="ghost">
+                  <RotateCcw className="h-4 w-4" />
+                </HeaderIconButton>
+                <HeaderIconButton
+                  label={didCopy ? "Kopiert" : "Kopieren"}
+                  onClick={handleCopy}
+                  chrome="ghost"
+                  className={cn(didCopy && "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-700")}
+                >
+                  {didCopy ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </HeaderIconButton>
+                <HeaderIconButton label="Duplizieren" onClick={handleDuplicate} chrome="ghost">
+                  <FilePlus2 className="h-4 w-4" />
+                </HeaderIconButton>
+                <HeaderIconButton label="Favorit" onClick={handleFavorite} chrome="ghost">
+                  <Star className={cn("h-4 w-4", draft.isFavorite && "fill-amber-400 text-amber-500")} />
+                </HeaderIconButton>
+                <HeaderIconButton label="Löschen" onClick={handleDelete} chrome="ghost">
+                  <Trash2 className="h-4 w-4" />
+                </HeaderIconButton>
               </div>
             </div>
 
