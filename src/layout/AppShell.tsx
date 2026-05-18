@@ -113,7 +113,7 @@ export function AppShell({
         </div>
 
         <footer className={cn("mt-4 border-t border-border pt-3 text-center text-[11px] leading-5 text-muted-foreground", isCollapsed && "hidden")}>
-          <p>© 2026 BuiltSmart Hub AI</p>
+          <p>© 2026 BuiltSmart AI</p>
           <p>powered by BuiltSmart Hub</p>
           <div className="mt-2 flex flex-wrap justify-center gap-x-1.5 gap-y-1">
             {legalLinks.map((link, index) => (
