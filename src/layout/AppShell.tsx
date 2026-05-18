@@ -62,7 +62,7 @@ export function AppShell({
           </div>
           <div className={cn("min-w-0", isCollapsed && "hidden")}>
             <p className="text-base font-semibold">SMART SnippetFlow</p>
-            <p className="text-xs text-muted-foreground">Lokale Bibliothek</p>
+            <p className="text-xs text-muted-foreground">Lokale Wissensbasis</p>
           </div>
         </div>
 
