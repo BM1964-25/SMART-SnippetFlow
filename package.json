@@ -7,7 +7,7 @@
   "main": "dist-electron/electron/main.js",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"tsc -p tsconfig.electron.json --watch\" \"wait-on tcp:5173 dist-electron/electron/main.js && electron .\"",
+    "dev": "node --env-file=.env ./node_modules/.bin/concurrently -k \"vite --host 127.0.0.1\" \"tsc -p tsconfig.electron.json --watch\" \"wait-on tcp:5173 dist-electron/electron/main.js && electron .\"",
     "build": "tsc -p tsconfig.json && tsc -p tsconfig.electron.json && vite build",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
@@ -15,6 +15,10 @@
     "dist:win": "npm run build && electron-builder --win nsis --x64",
     "icons": "node scripts/generate-icons.mjs",
     "preview": "vite preview",
+    "supabase:status": "supabase status",
+    "supabase:db:push": "supabase db push",
+    "supabase:functions:serve:checkout": "supabase functions serve create-checkout-session --env-file supabase/.env --no-verify-jwt",
+    "supabase:functions:deploy": "supabase functions deploy stripe-webhook && supabase functions deploy create-checkout-session",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.electron.json --noEmit"
   },
   "build": {
@@ -105,6 +109,7 @@
     "electron": "^39.8.10",
     "electron-builder": "^26.8.1",
     "postcss": "^8.4.49",
+    "supabase": "^2.99.0",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",

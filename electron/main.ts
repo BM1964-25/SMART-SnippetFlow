@@ -1,5 +1,6 @@
 import path from "node:path";
 import fs from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } from "electron";
 import {
@@ -23,7 +24,17 @@ import {
   saveSetting,
   toggleFavorite,
 } from "./storage.js";
-import type { AiConnectionTestResult, AiPromptAnalysisRequest, AiPromptAnalysisResult, EntryType, FieldOptionKey, LibraryEntryInput, LicenseState } from "../src/types/index.js";
+import type {
+  AiConnectionTestResult,
+  AiPromptAnalysisRequest,
+  AiPromptAnalysisResult,
+  EntryType,
+  FieldOptionKey,
+  LibraryEntryInput,
+  LicenseState,
+  LicenseStatus,
+  RemoteLicenseStatus,
+} from "../src/types/index.js";
 
 const isDev = !app.isPackaged;
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -123,6 +134,9 @@ ipcMain.handle("settings:get", (_event, key: string) => getSetting(key));
 ipcMain.handle("settings:save", (_event, key: string, value: string) => saveSetting(key, value));
 ipcMain.handle("license:get", () => getLicenseState());
 ipcMain.handle("license:save", (_event, license: LicenseState) => saveLicenseState(license));
+ipcMain.handle("license:activate", (_event, key: string) => activateLicense(key));
+ipcMain.handle("license:refresh", () => refreshLicense());
+ipcMain.handle("license:deactivate", () => deactivateLicense());
 ipcMain.handle("export:json", async () => {
   const payload = createExportPayload("json");
   const defaultPath = await getNextAvailableExportPath(app.getPath("downloads"), payload.fileName);
@@ -181,6 +195,262 @@ ipcMain.handle("import:json", async () => {
 
 ipcMain.handle("ai:analyze-prompt", async (_event, request: AiPromptAnalysisRequest) => analyzePromptWithAnthropic(request));
 ipcMain.handle("ai:test-connection", async () => testAnthropicConnection());
+
+type LicenseRpcResponse = {
+  ok: boolean;
+  reason?: string;
+  licenseId?: string;
+  activationId?: string;
+  status?: RemoteLicenseStatus;
+  currentPeriodEnd?: string | null;
+  deviceLimit?: number;
+  activeDevices?: number;
+};
+
+async function activateLicense(key: string): Promise<LicenseState> {
+  const normalizedKey = sanitizeLicenseKey(key);
+
+  if (!normalizedKey) {
+    return saveLicenseState({
+      key: "",
+      status: "invalid",
+      expiresAt: null,
+      activationId: null,
+      remoteStatus: null,
+      checkedAt: new Date().toISOString(),
+      message: "Bitte einen Lizenzschlüssel eingeben.",
+    });
+  }
+
+  const deviceFingerprintHash = getDeviceFingerprintHash();
+  const result = await callLicenseRpc("activate_license", {
+    p_license_key: normalizedKey,
+    p_device_fingerprint_hash: deviceFingerprintHash,
+    p_device_label: `${process.platform} desktop`,
+    p_platform: process.platform,
+    p_app_version: app.getVersion(),
+    p_metadata: {
+      app: "SMART SnippetFlow",
+    },
+  });
+
+  const license = licenseStateFromRpc(normalizedKey, result, "Lizenz aktiviert.");
+  return saveLicenseState(license);
+}
+
+async function refreshLicense(): Promise<LicenseState> {
+  const current = getLicenseState();
+  const normalizedKey = sanitizeLicenseKey(current.key);
+
+  if (!normalizedKey || !current.activationId) {
+    return saveLicenseState({
+      ...current,
+      key: normalizedKey,
+      status: "invalid",
+      checkedAt: new Date().toISOString(),
+      message: "Keine aktivierte Lizenz vorhanden.",
+    });
+  }
+
+  const result = await callLicenseRpc("refresh_license_activation", {
+    p_license_key: normalizedKey,
+    p_activation_id: current.activationId,
+    p_device_fingerprint_hash: getDeviceFingerprintHash(),
+    p_app_version: app.getVersion(),
+  });
+
+  const license = licenseStateFromRpc(normalizedKey, result, "Lizenzstatus aktualisiert.", current.activationId);
+  return saveLicenseState(license);
+}
+
+async function deactivateLicense(): Promise<LicenseState> {
+  const current = getLicenseState();
+  const normalizedKey = sanitizeLicenseKey(current.key);
+
+  if (normalizedKey && current.activationId) {
+    try {
+      await callLicenseRpc("deactivate_license_activation", {
+        p_license_key: normalizedKey,
+        p_activation_id: current.activationId,
+        p_device_fingerprint_hash: getDeviceFingerprintHash(),
+      });
+    } catch (error) {
+      return saveLicenseState({
+        ...current,
+        checkedAt: new Date().toISOString(),
+        message: error instanceof Error ? error.message : "Deaktivierung fehlgeschlagen.",
+      });
+    }
+  }
+
+  return saveLicenseState({
+    key: "",
+    status: "invalid",
+    expiresAt: null,
+    activationId: null,
+    remoteStatus: null,
+    checkedAt: new Date().toISOString(),
+    message: "Lizenz auf diesem Gerät deaktiviert.",
+  });
+}
+
+async function callLicenseRpc(functionName: string, payload: Record<string, unknown>): Promise<LicenseRpcResponse> {
+  const config = getSupabaseConfig();
+
+  if (!config) {
+    throw new Error("Supabase ist noch nicht konfiguriert. Setze SMART_SNIPPETFLOW_SUPABASE_URL und SMART_SNIPPETFLOW_SUPABASE_ANON_KEY.");
+  }
+
+  const response = await fetch(`${config.url}/rest/v1/rpc/${functionName}`, {
+    method: "POST",
+    headers: {
+      apikey: config.anonKey,
+      authorization: `Bearer ${config.anonKey}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await response.text();
+  const parsed = text ? (JSON.parse(text) as LicenseRpcResponse) : ({ ok: false, reason: "empty_response" } as LicenseRpcResponse);
+
+  if (!response.ok) {
+    throw new Error(parsed.reason ?? `Supabase RPC fehlgeschlagen: ${response.status}`);
+  }
+
+  return parsed;
+}
+
+function licenseStateFromRpc(key: string, result: LicenseRpcResponse, successMessage: string, fallbackActivationId?: string | null): LicenseState {
+  const checkedAt = new Date().toISOString();
+  const remoteStatus = result.status ?? null;
+  const expiresAt = result.currentPeriodEnd ?? null;
+
+  if (!result.ok) {
+    return {
+      key,
+      status: mapFailedLicenseStatus(remoteStatus),
+      expiresAt,
+      activationId: fallbackActivationId ?? null,
+      remoteStatus,
+      checkedAt,
+      message: licenseReasonLabel(result.reason, result),
+    };
+  }
+
+  return {
+    key,
+    status: mapRemoteLicenseStatus(remoteStatus, expiresAt),
+    expiresAt,
+    activationId: result.activationId ?? fallbackActivationId ?? null,
+    remoteStatus,
+    checkedAt,
+    message: successMessage,
+  };
+}
+
+function mapRemoteLicenseStatus(remoteStatus: RemoteLicenseStatus | null, expiresAt: string | null): LicenseStatus {
+  if (expiresAt && new Date(expiresAt).getTime() <= Date.now()) {
+    return "expired";
+  }
+
+  if (remoteStatus && ["trialing", "active", "past_due", "canceled"].includes(remoteStatus)) {
+    return "active";
+  }
+
+  if (remoteStatus && ["expired", "refunded", "disabled"].includes(remoteStatus)) {
+    return "expired";
+  }
+
+  return "invalid";
+}
+
+function mapFailedLicenseStatus(remoteStatus: RemoteLicenseStatus | null): LicenseStatus {
+  if (remoteStatus && ["expired", "refunded", "disabled", "canceled"].includes(remoteStatus)) {
+    return "expired";
+  }
+
+  return "invalid";
+}
+
+function licenseReasonLabel(reason: string | undefined, result: LicenseRpcResponse) {
+  switch (reason) {
+    case "license_not_found":
+      return "Lizenzschlüssel wurde nicht gefunden.";
+    case "license_not_usable":
+      return "Diese Lizenz ist nicht nutzbar.";
+    case "device_limit_reached":
+      return `Gerätelimit erreicht (${result.activeDevices ?? "?"}/${result.deviceLimit ?? "?"}).`;
+    case "activation_not_found":
+      return "Diese Geräteaktivierung wurde nicht gefunden.";
+    case "missing_license_key":
+      return "Bitte einen Lizenzschlüssel eingeben.";
+    case "missing_device_fingerprint":
+      return "Dieses Gerät konnte nicht eindeutig vorbereitet werden.";
+    default:
+      return reason ? `Lizenzprüfung fehlgeschlagen: ${reason}` : "Lizenzprüfung fehlgeschlagen.";
+  }
+}
+
+function getDeviceFingerprintHash() {
+  const installId = getOrCreateInstallId();
+  return createHash("sha256").update(`smart-snippetflow:${installId}`).digest("hex");
+}
+
+function getOrCreateInstallId() {
+  const existing = getSetting("install_id");
+
+  if (existing) {
+    return existing;
+  }
+
+  const installId = crypto.randomUUID();
+  saveSetting("install_id", installId);
+  return installId;
+}
+
+function getSupabaseConfig() {
+  const url =
+    getSetting("supabase_url") ??
+    process.env.SMART_SNIPPETFLOW_SUPABASE_URL ??
+    process.env.VITE_SUPABASE_URL ??
+    process.env.SUPABASE_URL;
+  const anonKey =
+    getSetting("supabase_anon_key") ??
+    process.env.SMART_SNIPPETFLOW_SUPABASE_ANON_KEY ??
+    process.env.VITE_SUPABASE_ANON_KEY ??
+    process.env.SUPABASE_ANON_KEY;
+
+  if (!url || !anonKey) {
+    return null;
+  }
+
+  return {
+    url: url.replace(/\/$/, ""),
+    anonKey,
+  };
+}
+
+function sanitizeLicenseKey(value: string) {
+  const compact = value
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+
+  if (!compact) {
+    return "";
+  }
+
+  if (compact.startsWith("SSF") && compact.length === 19) {
+    return `SSF-${compact.slice(3, 7)}-${compact.slice(7, 11)}-${compact.slice(11, 15)}-${compact.slice(15, 19)}`;
+  }
+
+  if (compact.length === 16) {
+    return `SSF-${compact.slice(0, 4)}-${compact.slice(4, 8)}-${compact.slice(8, 12)}-${compact.slice(12, 16)}`;
+  }
+
+  return compact.startsWith("SSF") ? compact.replace(/^SSF/, "SSF-") : compact;
+}
 
 async function testAnthropicConnection(): Promise<AiConnectionTestResult> {
   const apiKey = sanitizeApiKey(getSetting("anthropic_api_key") ?? "");

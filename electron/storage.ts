@@ -201,6 +201,9 @@ export function initializeDatabase() {
       key TEXT,
       status TEXT NOT NULL CHECK (status IN ('active', 'expired', 'invalid')),
       expires_at TEXT,
+      activation_id TEXT,
+      remote_status TEXT,
+      message TEXT,
       checked_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -239,6 +242,7 @@ export function initializeDatabase() {
 
   migrateEntryTypeConstraint();
   migrateEntryFieldValue();
+  migrateLicenseStateColumns();
   migrateFieldOptionKeys();
   seedSystemFieldOptions();
   seedStarterCategories();
@@ -551,26 +555,49 @@ export function toggleFavorite(id: string): LibraryEntry | null {
 
 export function getLicenseState(): LicenseState {
   const row = getDb()
-    .prepare("SELECT key, status, expires_at as expiresAt FROM license_state WHERE id = 1")
+    .prepare(
+      `SELECT
+         key,
+         status,
+         expires_at as expiresAt,
+         activation_id as activationId,
+         remote_status as remoteStatus,
+         message,
+         checked_at as checkedAt
+       FROM license_state
+       WHERE id = 1`,
+    )
     .get() as LicenseState | undefined;
 
-  return row ?? { key: "", status: "invalid", expiresAt: null };
+  return row ?? { key: "", status: "invalid", expiresAt: null, activationId: null, remoteStatus: null, checkedAt: null, message: null };
 }
 
 export function saveLicenseState(license: LicenseState) {
+  const nextLicense: LicenseState = {
+    ...license,
+    key: license.key.trim().toUpperCase(),
+    activationId: license.activationId ?? null,
+    remoteStatus: license.remoteStatus ?? null,
+    checkedAt: license.checkedAt ?? new Date().toISOString(),
+    message: license.message ?? null,
+  };
+
   getDb()
     .prepare(
-      `INSERT INTO license_state (id, key, status, expires_at, checked_at)
-       VALUES (1, @key, @status, @expiresAt, CURRENT_TIMESTAMP)
+      `INSERT INTO license_state (id, key, status, expires_at, activation_id, remote_status, message, checked_at)
+       VALUES (1, @key, @status, @expiresAt, @activationId, @remoteStatus, @message, @checkedAt)
        ON CONFLICT(id) DO UPDATE SET
          key = excluded.key,
          status = excluded.status,
          expires_at = excluded.expires_at,
-         checked_at = CURRENT_TIMESTAMP`,
+         activation_id = excluded.activation_id,
+         remote_status = excluded.remote_status,
+         message = excluded.message,
+         checked_at = excluded.checked_at`,
     )
-    .run(license);
+    .run(nextLicense);
 
-  return license;
+  return nextLicense;
 }
 
 export function getSetting(key: string) {
@@ -686,6 +713,10 @@ export function importJsonPayload(content: string) {
       key: parsed.license.key ?? "",
       status: parsed.license.status,
       expiresAt: parsed.license.expiresAt ?? null,
+      activationId: parsed.license.activationId ?? null,
+      remoteStatus: parsed.license.remoteStatus ?? null,
+      checkedAt: parsed.license.checkedAt ?? null,
+      message: parsed.license.message ?? null,
     });
   }
 
@@ -978,6 +1009,23 @@ function migrateEntryFieldValue() {
        WHERE field_value IS NULL`,
     )
     .run();
+}
+
+function migrateLicenseStateColumns() {
+  const columns = getDb().prepare("PRAGMA table_info(license_state)").all() as Array<{ name: string }>;
+  const names = new Set(columns.map((column) => column.name));
+
+  if (!names.has("activation_id")) {
+    getDb().prepare("ALTER TABLE license_state ADD COLUMN activation_id TEXT").run();
+  }
+
+  if (!names.has("remote_status")) {
+    getDb().prepare("ALTER TABLE license_state ADD COLUMN remote_status TEXT").run();
+  }
+
+  if (!names.has("message")) {
+    getDb().prepare("ALTER TABLE license_state ADD COLUMN message TEXT").run();
+  }
 }
 
 function migrateFieldOptionKeys() {

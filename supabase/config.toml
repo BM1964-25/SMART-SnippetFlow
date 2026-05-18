@@ -1,0 +1,9 @@
+project_id = "smart-snippetflow"
+
+[functions.stripe-webhook]
+verify_jwt = false
+import_map = "./functions/stripe-webhook/import_map.json"
+
+[functions.create-checkout-session]
+verify_jwt = false
+import_map = "./functions/create-checkout-session/import_map.json"

@@ -36,6 +36,9 @@ const api = {
   license: {
     get: (): Promise<LicenseState> => ipcRenderer.invoke("license:get"),
     save: (license: LicenseState): Promise<LicenseState> => ipcRenderer.invoke("license:save", license),
+    activate: (key: string): Promise<LicenseState> => ipcRenderer.invoke("license:activate", key),
+    refresh: (): Promise<LicenseState> => ipcRenderer.invoke("license:refresh"),
+    deactivate: (): Promise<LicenseState> => ipcRenderer.invoke("license:deactivate"),
   },
   settings: {
     get: (key: string): Promise<string | null> => ipcRenderer.invoke("settings:get", key),

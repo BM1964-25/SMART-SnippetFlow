@@ -52,6 +52,26 @@ const exportScopeOptions: Array<{ label: string; value: EntryType | "all" }> = [
 
 const defaultAnthropicModel = "claude-sonnet-4-5-20250929";
 
+function formatLicenseKeyInput(value: string) {
+  const compact = value
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+
+  if (!compact) {
+    return "";
+  }
+
+  if (compact.startsWith("SSF")) {
+    const body = compact.slice(3, 19);
+    const groups = body.match(/.{1,4}/g) ?? [];
+    return ["SSF", ...groups].join("-");
+  }
+
+  const groups = compact.slice(0, 16).match(/.{1,4}/g) ?? [];
+  return groups.length === 4 ? ["SSF", ...groups].join("-") : compact;
+}
+
 export function SettingsPage({
   license,
   onApiStatusChange,
@@ -63,6 +83,8 @@ export function SettingsPage({
 }) {
   const [draft, setDraft] = useState(license);
   const [dataNotice, setDataNotice] = useState<string | null>(null);
+  const [licenseNotice, setLicenseNotice] = useState<string | null>(license.message ?? null);
+  const [isLicenseChecking, setIsLicenseChecking] = useState(false);
   const [aiNotice, setAiNotice] = useState<string | null>(null);
   const [aiDraft, setAiDraft] = useState({
     anthropicApiKey: "",
@@ -74,6 +96,11 @@ export function SettingsPage({
   const [storageReport, setStorageReport] = useState(() => getBrowserStorageReport());
   const importInputRef = useRef<HTMLInputElement>(null);
   const isBrowserPreview = !window.snippetFlow;
+
+  useEffect(() => {
+    setDraft(license);
+    setLicenseNotice(license.message ?? null);
+  }, [license]);
 
   useEffect(() => {
     let isMounted = true;
@@ -97,18 +124,91 @@ export function SettingsPage({
     };
   }, []);
 
-  async function handleSave() {
-    const nextLicense: LicenseState = {
-      ...draft,
-      status: draft.key.trim().length >= 8 ? draft.status : "invalid",
-      expiresAt: draft.expiresAt || null,
-    };
-    const saved = (await window.snippetFlow?.license?.save(nextLicense)) ?? nextLicense;
-    if (!window.snippetFlow?.license?.save) {
-      writeBrowserLicense(saved);
+  async function handleActivateLicense() {
+    const licenseKey = formatLicenseKeyInput(draft.key);
+
+    if (!licenseKey) {
+      setLicenseNotice("Bitte einen Lizenzschlüssel eingeben.");
+      return;
     }
-    onLicenseChange(saved);
-    setDraft(saved);
+
+    setDraft((current) => ({ ...current, key: licenseKey }));
+
+    if (!window.snippetFlow?.license?.activate) {
+      const nextLicense: LicenseState = {
+        ...draft,
+        key: licenseKey,
+        status: licenseKey.length >= 8 ? "active" : "invalid",
+        expiresAt: draft.expiresAt || null,
+        checkedAt: new Date().toISOString(),
+        message: "Browser-Vorschau: Lizenz lokal gespeichert.",
+      };
+      writeBrowserLicense(nextLicense);
+      onLicenseChange(nextLicense);
+      setDraft(nextLicense);
+      setLicenseNotice(nextLicense.message ?? null);
+      return;
+    }
+
+    setIsLicenseChecking(true);
+    setLicenseNotice("Lizenz wird aktiviert...");
+
+    try {
+      const saved = await window.snippetFlow.license.activate(licenseKey);
+      onLicenseChange(saved);
+      setDraft(saved);
+      setLicenseNotice(saved.message ?? statusLabel[saved.status]);
+    } catch (error) {
+      setLicenseNotice(error instanceof Error ? error.message : "Lizenzaktivierung fehlgeschlagen.");
+    } finally {
+      setIsLicenseChecking(false);
+    }
+  }
+
+  async function handleRefreshLicense() {
+    if (!window.snippetFlow?.license?.refresh) {
+      setLicenseNotice("Lizenzprüfung ist nur in der Desktop-App verfügbar.");
+      return;
+    }
+
+    setIsLicenseChecking(true);
+    setLicenseNotice("Lizenzstatus wird geprüft...");
+
+    try {
+      const saved = await window.snippetFlow.license.refresh();
+      onLicenseChange(saved);
+      setDraft(saved);
+      setLicenseNotice(saved.message ?? statusLabel[saved.status]);
+    } catch (error) {
+      setLicenseNotice(error instanceof Error ? error.message : "Lizenzprüfung fehlgeschlagen.");
+    } finally {
+      setIsLicenseChecking(false);
+    }
+  }
+
+  async function handleDeactivateLicense() {
+    if (!window.snippetFlow?.license?.deactivate) {
+      const nextLicense: LicenseState = { key: "", status: "invalid", expiresAt: null, checkedAt: new Date().toISOString(), message: "Lizenz entfernt." };
+      writeBrowserLicense(nextLicense);
+      onLicenseChange(nextLicense);
+      setDraft(nextLicense);
+      setLicenseNotice(nextLicense.message ?? null);
+      return;
+    }
+
+    setIsLicenseChecking(true);
+    setLicenseNotice("Lizenz wird auf diesem Gerät deaktiviert...");
+
+    try {
+      const saved = await window.snippetFlow.license.deactivate();
+      onLicenseChange(saved);
+      setDraft(saved);
+      setLicenseNotice(saved.message ?? statusLabel[saved.status]);
+    } catch (error) {
+      setLicenseNotice(error instanceof Error ? error.message : "Deaktivierung fehlgeschlagen.");
+    } finally {
+      setIsLicenseChecking(false);
+    }
   }
 
   async function saveAiSettings(apiKey: string, model: string) {
@@ -243,7 +343,7 @@ export function SettingsPage({
       <div className="max-w-3xl">
         <h1 className="text-2xl font-semibold tracking-normal">Einstellungen</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Lokale App-Einstellungen und vorbereitete Lizenzaktivierung für Lemon Squeezy.
+          Lokale App-Einstellungen und vorbereitete Lizenzaktivierung für Stripe und Supabase.
         </p>
 
         <section className="mt-8 rounded-lg border border-border bg-card p-6 shadow-sm">
@@ -260,34 +360,49 @@ export function SettingsPage({
           <div className="mt-6 grid gap-4">
             <label className="grid gap-2 text-sm font-medium">
               Lizenzschlüssel
-              <Input value={draft.key} onChange={(event) => setDraft({ ...draft, key: event.target.value })} placeholder="xxx-xxxx-xxxx-xxxx-xxxx" />
+              <Input
+                value={draft.key}
+                onBlur={() => setDraft((current) => ({ ...current, key: formatLicenseKeyInput(current.key) }))}
+                onChange={(event) => setDraft({ ...draft, key: event.target.value.toUpperCase() })}
+                placeholder="SSF-XXXX-XXXX-XXXX-XXXX"
+                autoCapitalize="characters"
+                spellCheck={false}
+              />
             </label>
 
-            <label className="grid gap-2 text-sm font-medium">
-              Status
-              <select
-                value={draft.status}
-                onChange={(event) => setDraft({ ...draft, status: event.target.value as LicenseStatus })}
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/15"
-              >
-                <option value="active">Aktiv</option>
-                <option value="expired">Abgelaufen</option>
-                <option value="invalid">Ungültig</option>
-              </select>
-            </label>
-
-            <label className="grid gap-2 text-sm font-medium">
-              Ablaufdatum
-              <Input type="date" value={draft.expiresAt ?? ""} onChange={(event) => setDraft({ ...draft, expiresAt: event.target.value || null })} />
-            </label>
+            <div className="grid gap-3 rounded-lg border border-border bg-background p-4 text-sm">
+              <div className="flex items-center justify-between gap-4">
+                <span className="font-medium">Lokaler Status</span>
+                <Badge>{statusLabel[draft.status]}</Badge>
+              </div>
+              <div className="grid gap-1 text-muted-foreground">
+                <p>Remote-Status: {draft.remoteStatus ?? "Noch nicht geprüft"}</p>
+                <p>Ablauf: {draft.expiresAt ? new Date(draft.expiresAt).toLocaleDateString("de-DE") : "Keine Begrenzung"}</p>
+                <p>Letzte Prüfung: {draft.checkedAt ? new Date(draft.checkedAt).toLocaleString("de-DE") : "Noch nicht geprüft"}</p>
+              </div>
+            </div>
           </div>
 
-          <div className="mt-6 flex justify-end border-t border-border pt-4">
-            <Button onClick={handleSave} className="min-w-40">
-              <Save className="h-4 w-4" />
-              Lizenz speichern
+          <div className="mt-6 grid gap-2 border-t border-border pt-4 sm:grid-cols-3">
+            <Button onClick={() => void handleActivateLicense()} disabled={isLicenseChecking} className="w-full">
+              {isLicenseChecking ? <RefreshCw className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />}
+              Aktivieren
+            </Button>
+            <Button onClick={() => void handleRefreshLicense()} disabled={isLicenseChecking || !draft.activationId} variant="outline" className="w-full">
+              <RefreshCw className="h-4 w-4" />
+              Prüfen
+            </Button>
+            <Button
+              onClick={() => void handleDeactivateLicense()}
+              disabled={isLicenseChecking || (!draft.activationId && !draft.key)}
+              variant="outline"
+              className="w-full border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+            >
+              <Unplug className="h-4 w-4" />
+              Deaktivieren
             </Button>
           </div>
+          {licenseNotice && <p className="mt-3 text-sm text-muted-foreground">{licenseNotice}</p>}
         </section>
 
         <section className="mt-6 rounded-lg border border-border bg-card p-6 shadow-sm">

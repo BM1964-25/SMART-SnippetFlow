@@ -1,6 +1,7 @@
 export type EntryType = "prompt" | "code" | "workflow" | "note";
 export type PreviewKind = "html" | "css" | "javascript" | "markdown";
 export type LicenseStatus = "active" | "expired" | "invalid";
+export type RemoteLicenseStatus = "trialing" | "active" | "past_due" | "canceled" | "expired" | "refunded" | "disabled";
 export type ApiStatus = "active" | "missing";
 export type AppView = "all" | "prompts" | "code" | "workflows" | "notes" | "favorites" | "settings" | "help";
 export type ExportFormat = "json" | "markdown" | "txt";
@@ -40,6 +41,10 @@ export interface LicenseState {
   key: string;
   status: LicenseStatus;
   expiresAt: string | null;
+  activationId?: string | null;
+  remoteStatus?: RemoteLicenseStatus | null;
+  checkedAt?: string | null;
+  message?: string | null;
 }
 
 export interface LibraryCategory {

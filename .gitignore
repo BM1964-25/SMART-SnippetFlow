@@ -9,6 +9,11 @@ build/ico-sizes
 !build/icon.icns
 .DS_Store
 *.log
+.env
+*.env
+!.env.example
+!*.env.example
+supabase/.temp
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
