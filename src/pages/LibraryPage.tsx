@@ -1653,10 +1653,7 @@ function EntryWorkflowSteps({
     workflow: "Workflow eingeben",
     note: "Notiz eingeben",
   };
-  const metadataStep =
-    entryType === "prompt"
-      ? { label: "Titel & Metadaten per KI ausfüllen", hint: "Leere Felder werden ergänzt" }
-      : { label: "Titel & Metadaten ergänzen", hint: "Beschreibung, Kategorie, Tags" };
+  const metadataStep = { label: "Titel & Metadaten per KI ausfüllen", hint: "Leere Felder werden ergänzt" };
   const steps = [
     { label: contentLabels[entryType], hint: "Inhalt erfassen", done: hasContent },
     { ...metadataStep, done: hasMetadata },
