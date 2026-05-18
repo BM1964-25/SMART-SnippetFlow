@@ -914,7 +914,7 @@ export function LibraryPage({
 
       {draft && (
         <section className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-card">
-          <header className="shrink-0 px-8 pb-6 pt-8">
+          <header className="shrink-0 px-8 pb-0 pt-8">
             <div className="flex items-start justify-between gap-5">
               <div className="min-w-0 flex-1">
                 <div className="flex min-h-5 items-center gap-2">
@@ -1175,7 +1175,7 @@ export function LibraryPage({
             </CollapsiblePanel>
           </header>
 
-          <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-6">
+          <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 pb-6 pt-5">
             <CollapsiblePanel
               title="Editor"
               description="Inhalt schreiben, Varianten bearbeiten und kopieren."
