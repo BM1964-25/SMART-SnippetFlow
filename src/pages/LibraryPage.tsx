@@ -916,7 +916,7 @@ export function LibraryPage({
         <section className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-card">
           <header className="shrink-0 px-8 pb-0 pt-7">
             <div className="flex items-start justify-between gap-5">
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 pr-4">
                 <div>
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <h2 className="text-2xl font-semibold tracking-normal">{editorTitle[draft.type]}</h2>
@@ -927,14 +927,15 @@ export function LibraryPage({
                     )}
                     {notice && <span className="text-xs text-muted-foreground">{notice}</span>}
                   </div>
-                  <p className="mt-1 max-w-2xl truncate text-sm text-muted-foreground">{editorDescription[draft.type]}</p>
+                  <p className="mt-1 max-w-full truncate text-sm text-muted-foreground">{editorDescription[draft.type]}</p>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center justify-end gap-3">
-                <div className="flex gap-2">
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-3">
+                <div className="flex gap-1">
                   <HeaderIconButton
                     label={didSave && !isDirty ? "Gespeichert" : "Speichern"}
                     onClick={handleSave}
+                    chrome="ghost"
                     className={cn(
                       isDirty && "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800",
                       didSave && !isDirty && "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-700",
@@ -942,27 +943,28 @@ export function LibraryPage({
                   >
                     {didSave && !isDirty ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
                   </HeaderIconButton>
-                  <HeaderIconButton label="Änderungen verwerfen" onClick={handleDiscard} disabled={!isDirty}>
+                  <HeaderIconButton label="Änderungen verwerfen" onClick={handleDiscard} disabled={!isDirty} chrome="ghost">
                     <RotateCcw className="h-4 w-4" />
                   </HeaderIconButton>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1">
                   <HeaderIconButton
                     label={didCopy ? "Kopiert" : "Kopieren"}
                     onClick={handleCopy}
+                    chrome="ghost"
                     className={cn(didCopy && "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-700")}
                   >
                     {didCopy ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   </HeaderIconButton>
-                  <HeaderIconButton label="Duplizieren" onClick={handleDuplicate}>
+                  <HeaderIconButton label="Duplizieren" onClick={handleDuplicate} chrome="ghost">
                     <FilePlus2 className="h-4 w-4" />
                   </HeaderIconButton>
                 </div>
-                <div className="flex gap-2">
-                  <HeaderIconButton label="Favorit" onClick={handleFavorite}>
+                <div className="flex gap-1">
+                  <HeaderIconButton label="Favorit" onClick={handleFavorite} chrome="ghost">
                     <Star className={cn("h-4 w-4", draft.isFavorite && "fill-amber-400 text-amber-500")} />
                   </HeaderIconButton>
-                  <HeaderIconButton label="Löschen" onClick={handleDelete}>
+                  <HeaderIconButton label="Löschen" onClick={handleDelete} chrome="ghost">
                     <Trash2 className="h-4 w-4" />
                   </HeaderIconButton>
                 </div>
@@ -1564,12 +1566,14 @@ function HeaderIconButton({
   label,
   onClick,
   disabled,
+  chrome = "outline",
   className,
   children,
 }: {
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  chrome?: "outline" | "ghost";
   className?: string;
   children: ReactNode;
 }) {
@@ -1577,7 +1581,7 @@ function HeaderIconButton({
     <div className="group relative">
       <Button
         onClick={onClick}
-        variant="outline"
+        variant={chrome}
         disabled={disabled}
         aria-label={label}
         className={cn("h-12 w-12", className)}
