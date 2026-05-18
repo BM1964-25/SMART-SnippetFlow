@@ -52,7 +52,7 @@ export function AppShell({
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <aside
         className={cn(
-          "flex shrink-0 flex-col border-r border-border bg-card px-4 py-5 transition-[width] duration-200",
+          "flex shrink-0 flex-col border-r border-border bg-card px-4 py-6 transition-[width] duration-200",
           isCollapsed ? "w-20" : "w-64",
         )}
       >

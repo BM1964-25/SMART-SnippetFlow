@@ -741,12 +741,12 @@ export function LibraryPage({
     <div className="grid h-full min-h-0 grid-cols-[minmax(360px,0.82fr)_minmax(520px,1.18fr)] overflow-hidden">
       <section className="flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-border bg-background">
         <header className="shrink-0 border-b border-border px-8 pb-5 pt-8">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex min-h-12 items-start justify-between gap-4">
             <div>
               <h1 className="text-2xl font-semibold tracking-normal">{viewTitle[activeView]}</h1>
               <p className="mt-1 text-sm text-muted-foreground">{viewDescription[activeView]}</p>
             </div>
-            <Button onClick={handleCreate} className="min-w-24 justify-center">
+            <Button onClick={handleCreate} className="mt-0.5 min-w-24 justify-center">
               <FilePlus2 className="h-4 w-4" />
               Neu
             </Button>
@@ -914,8 +914,8 @@ export function LibraryPage({
 
       {draft && (
         <section className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-card">
-          <header className="shrink-0 px-8 pb-0 pt-7">
-            <div className="flex items-start justify-between gap-5">
+          <header className="shrink-0 px-8 pb-0 pt-8">
+            <div className="flex min-h-12 items-start justify-between gap-5">
               <div className="min-w-0 flex-1 pr-4">
                 <div>
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -930,7 +930,7 @@ export function LibraryPage({
                   <p className="mt-1 max-w-full truncate text-sm text-muted-foreground">{editorDescription[draft.type]}</p>
                 </div>
               </div>
-              <div className="flex shrink-0 flex-wrap items-start justify-end gap-0.5 pt-0.5">
+              <div className="flex shrink-0 flex-wrap items-start justify-end gap-0.5 pt-1">
                 <HeaderIconButton
                   label={didSave && !isDirty ? "Gespeichert" : "Speichern"}
                   onClick={handleSave}
