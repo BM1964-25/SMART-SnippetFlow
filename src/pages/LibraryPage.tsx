@@ -34,10 +34,10 @@ const editorTitle: Record<EntryType, string> = {
 };
 
 const editorDescription: Record<EntryType, string> = {
-  prompt: "KI-Anweisungen, Vorlagen und wiederverwendbare Arbeitsaufträge.",
-  code: "Snippets, Funktionen, technische Muster und schnelle Kopiervorlagen.",
-  workflow: "Schrittfolgen, Abläufe und wiederkehrende Arbeitsroutinen.",
-  note: "Freier Text, Dokumentation, Gedanken und Markdown-Notizen.",
+  prompt: "KI-Anweisungen und Vorlagen.",
+  code: "Snippets und technische Muster.",
+  workflow: "Schrittfolgen und Arbeitsroutinen.",
+  note: "Markdown-Notizen und Gedanken.",
 };
 
 const viewTitle: Record<Exclude<AppView, "settings">, string> = {
