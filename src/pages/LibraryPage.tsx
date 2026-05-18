@@ -1581,9 +1581,9 @@ function CollapsiblePanel({
         className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/50"
         aria-expanded={isOpen}
       >
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-foreground">{title}</span>
-          {description && <span className="mt-0.5 block text-xs text-muted-foreground">{description}</span>}
+        <span className="flex min-w-0 items-baseline gap-2">
+          <span className="shrink-0 text-sm font-semibold text-foreground">{title}</span>
+          {description && <span className="truncate text-xs text-muted-foreground">{description}</span>}
         </span>
         <span className="flex shrink-0 items-center gap-2">
           {headerAside}
