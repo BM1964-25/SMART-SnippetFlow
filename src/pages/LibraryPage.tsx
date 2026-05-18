@@ -874,9 +874,9 @@ export function LibraryPage({
                   onClick={() => setDeleteCandidate(entry)}
                   title="Eintrag löschen"
                   aria-label="Eintrag löschen"
-                  className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground opacity-0 transition-opacity hover:border-border hover:bg-muted hover:text-foreground group-hover:opacity-100 focus:opacity-100"
+                  className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground opacity-0 transition-opacity hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100 focus:opacity-100"
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
                 <button type="button" onClick={() => handleSelectEntry(entry.id)} className="block min-w-0 max-w-full text-left">
                   <div className="flex min-w-0 items-start justify-between gap-3">
@@ -959,7 +959,12 @@ export function LibraryPage({
                 <HeaderIconButton label="Favorit" onClick={handleFavorite} chrome="ghost">
                   <Star className={cn("h-4 w-4", draft.isFavorite && "fill-amber-400 text-amber-500")} />
                 </HeaderIconButton>
-                <HeaderIconButton label="Löschen" onClick={handleDelete} chrome="ghost">
+                <HeaderIconButton
+                  label="Löschen"
+                  onClick={handleDelete}
+                  chrome="ghost"
+                  className="hover:bg-rose-50 hover:text-rose-600"
+                >
                   <Trash2 className="h-4 w-4" />
                 </HeaderIconButton>
               </div>
@@ -1131,7 +1136,7 @@ export function LibraryPage({
                     title="Kategorie löschen"
                     aria-label="Kategorie löschen"
                     disabled={!draft.categoryId}
-                    className="text-rose-600 hover:text-rose-700"
+                    className="text-muted-foreground hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -1281,11 +1286,11 @@ export function LibraryPage({
                   <Button
                     type="button"
                     onClick={() => deletePromptVariant(activePromptVariant.id)}
-                    variant="rose"
+                    variant="outline"
                     size="icon"
                     title="Variante löschen"
                     aria-label="Variante löschen"
-                    className="h-9 w-9"
+                    className="h-9 w-9 text-muted-foreground hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -1702,7 +1707,7 @@ function EntryWorkflowSteps({
 
   return (
     <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
-      <div className="grid grid-cols-3 divide-x divide-border/70">
+      <div className="grid grid-cols-[0.8fr_1.4fr_0.8fr] divide-x divide-border/70">
         {steps.map((step, index) => (
           <div key={step.label} className="flex min-w-0 items-center gap-2 px-3 first:pl-0 last:pr-0">
             <span
@@ -1759,7 +1764,7 @@ function PromptVariantWorkflowSteps({
           <span className="text-[11px] text-muted-foreground">{variantCount}/3 Varianten</span>
         </div>
       </div>
-      <div className="grid grid-cols-3 divide-x divide-border/70 rounded-lg border border-border/70 bg-card/70 px-3 py-2">
+      <div className="grid grid-cols-[0.8fr_1.4fr_0.8fr] divide-x divide-border/70 rounded-lg border border-border/70 bg-card/70 px-3 py-2">
         {steps.map((step, index) => (
           <div key={step.label} className="flex min-w-0 items-center gap-2 px-3 first:pl-0 last:pr-0">
             <span
