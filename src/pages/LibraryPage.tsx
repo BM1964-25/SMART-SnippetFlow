@@ -1719,21 +1719,21 @@ function PromptVariantWorkflowSteps({
           <span className="text-[11px] text-muted-foreground">{variantCount}/3 Varianten</span>
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 divide-x divide-border/70 rounded-lg border border-border/70 bg-card/70 px-3 py-2">
         {steps.map((step, index) => (
-          <div key={step.label} className="flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-md border border-border/70 bg-card px-2 py-2 text-center shadow-sm">
-            <span className="flex min-w-0 items-center justify-center gap-1.5">
-              <span
-                className={cn(
-                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold",
-                  step.done ? "border-emerald-500 bg-emerald-600 text-white" : "border-slate-400 bg-slate-100 text-slate-700",
-                )}
-              >
-                {index + 1}
-              </span>
-              <span className={cn("block text-xs font-medium leading-4", step.done ? "text-foreground" : "text-muted-foreground")}>{step.label}</span>
+          <div key={step.label} className="flex min-w-0 items-center gap-2 px-3 first:pl-0 last:pr-0">
+            <span
+              className={cn(
+                "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold",
+                step.done ? "border-emerald-500 bg-emerald-600 text-white" : "border-slate-400 bg-background text-slate-700",
+              )}
+            >
+              {index + 1}
             </span>
             <span className="min-w-0">
+              <span className={cn("block truncate text-xs font-medium leading-4", step.done ? "text-foreground" : "text-muted-foreground")}>
+                {step.label}
+              </span>
               <span className="block truncate text-[10px] text-muted-foreground">{step.hint}</span>
             </span>
           </div>
