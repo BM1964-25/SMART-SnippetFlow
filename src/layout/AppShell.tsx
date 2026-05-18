@@ -5,7 +5,7 @@ import type { ApiStatus, AppView, LicenseStatus } from "@/types";
 import { cn } from "@/utils/cn";
 
 const navItems = [
-  { id: "all", label: "Alle", icon: Library },
+  { id: "all", label: "Bibliothek", icon: Library },
   { id: "prompts", label: "Prompts", icon: MessageSquareText },
   { id: "code", label: "Code", icon: Code2 },
   { id: "workflows", label: "Workflows", icon: Workflow },

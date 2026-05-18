@@ -10,7 +10,7 @@ import type { AiPromptAnalysisResult, ApiStatus, AppView, EntryType, FieldOption
 import { cn } from "@/utils/cn";
 
 const filters: Array<{ label: string; value: EntryType | "all" }> = [
-  { label: "Alle", value: "all" },
+  { label: "Alle Typen", value: "all" },
   { label: "Prompts", value: "prompt" },
   { label: "Code", value: "code" },
   { label: "Workflows", value: "workflow" },
@@ -41,7 +41,7 @@ const editorDescription: Record<EntryType, string> = {
 };
 
 const viewTitle: Record<Exclude<AppView, "settings">, string> = {
-  all: "Alle",
+  all: "Bibliothek",
   prompts: "Prompts",
   code: "Code",
   workflows: "Workflows",
