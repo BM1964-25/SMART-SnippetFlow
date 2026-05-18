@@ -816,7 +816,7 @@ export function LibraryPage({
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-6 py-4">
           {activeView === "all" && (
             <div className="mb-4 grid gap-3">
               <div className="grid grid-cols-6 gap-2">
@@ -860,12 +860,12 @@ export function LibraryPage({
               Keine Einträge gefunden.
             </div>
           )}
-          <div className="grid gap-2">
+          <div className="grid min-w-0 gap-2">
             {renderedEntries.map((entry) => (
               <div
                 key={entry.id}
                 className={cn(
-                  "group relative rounded-lg border border-border bg-card px-3 py-3 pr-11 text-left shadow-sm transition-colors hover:border-ring",
+                  "group relative min-w-0 max-w-full overflow-hidden rounded-lg border border-border bg-card px-3 py-3 pr-11 text-left shadow-sm transition-colors hover:border-ring",
                   draft?.id === entry.id && "border-ring",
                 )}
               >
@@ -878,22 +878,22 @@ export function LibraryPage({
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
-                <button type="button" onClick={() => handleSelectEntry(entry.id)} className="block w-full text-left">
-                  <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
+                <button type="button" onClick={() => handleSelectEntry(entry.id)} className="block min-w-0 max-w-full text-left">
+                  <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div className="min-w-0 max-w-full">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <Badge className="px-1.5 py-0 text-[11px]">{typeLabel[entry.type]}</Badge>
-                      {entry.fieldValue && <Badge className="px-1.5 py-0 text-[11px]">{entry.fieldValue}</Badge>}
-                      {entry.categoryName && <Badge className="px-1.5 py-0 text-[11px]">{entry.categoryName}</Badge>}
+                      <Badge className="max-w-full truncate px-1.5 py-0 text-[11px]">{typeLabel[entry.type]}</Badge>
+                      {entry.fieldValue && <Badge className="max-w-full truncate px-1.5 py-0 text-[11px]">{entry.fieldValue}</Badge>}
+                      {entry.categoryName && <Badge className="max-w-full truncate px-1.5 py-0 text-[11px]">{entry.categoryName}</Badge>}
                       {entry.isFavorite && <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />}
                     </div>
                     <h2 className="mt-2 truncate text-[13px] font-semibold">{entry.title}</h2>
                     <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{entry.description || "Keine Beschreibung"}</p>
                   </div>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                  <div className="mt-2 flex min-w-0 max-w-full flex-wrap gap-1.5 overflow-hidden">
                     {entry.tags.map((tag) => (
-                      <Badge key={tag} className="px-1.5 py-0 text-[11px]">{tag}</Badge>
+                      <Badge key={tag} className="max-w-full truncate px-1.5 py-0 text-[11px]">{tag}</Badge>
                     ))}
                   </div>
                 </button>
