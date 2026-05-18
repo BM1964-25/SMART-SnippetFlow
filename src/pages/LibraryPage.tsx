@@ -914,49 +914,58 @@ export function LibraryPage({
 
       {draft && (
         <section className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-card">
-          <header className="shrink-0 px-8 pb-0 pt-8">
+          <header className="shrink-0 px-8 pb-0 pt-7">
             <div className="flex items-start justify-between gap-5">
               <div className="min-w-0 flex-1">
-                <div className="flex min-h-5 items-center gap-2">
-                  {isDirty ? <Badge className="border-amber-200 bg-amber-50 text-amber-700">Ungespeichert</Badge> : <Badge>Synchron</Badge>}
-                  {notice && <span className="text-xs text-muted-foreground">{notice}</span>}
-                </div>
-
-                <div className="mt-3">
-                  <h2 className="text-2xl font-semibold tracking-normal">{editorTitle[draft.type]}</h2>
-                  <p className="mt-1 whitespace-nowrap text-sm text-muted-foreground">{editorDescription[draft.type]}</p>
+                <div>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <h2 className="text-2xl font-semibold tracking-normal">{editorTitle[draft.type]}</h2>
+                    {isDirty ? (
+                      <Badge className="border-amber-200 bg-amber-50 text-amber-700">Ungespeichert</Badge>
+                    ) : (
+                      <Badge className="border-transparent bg-muted/70 text-muted-foreground">Synchron</Badge>
+                    )}
+                    {notice && <span className="text-xs text-muted-foreground">{notice}</span>}
+                  </div>
+                  <p className="mt-1 max-w-2xl truncate text-sm text-muted-foreground">{editorDescription[draft.type]}</p>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <HeaderIconButton
-                  label={didSave && !isDirty ? "Gespeichert" : "Speichern"}
-                  onClick={handleSave}
-                  className={cn(
-                    isDirty && "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800",
-                    didSave && !isDirty && "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-700",
-                  )}
-                >
-                  {didSave && !isDirty ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
-                </HeaderIconButton>
-                <HeaderIconButton label="Änderungen verwerfen" onClick={handleDiscard} disabled={!isDirty}>
-                  <RotateCcw className="h-4 w-4" />
-                </HeaderIconButton>
-                <HeaderIconButton
-                  label={didCopy ? "Kopiert" : "Kopieren"}
-                  onClick={handleCopy}
-                  className={cn(didCopy && "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-700")}
-                >
-                  {didCopy ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </HeaderIconButton>
-                <HeaderIconButton label="Duplizieren" onClick={handleDuplicate}>
-                  <FilePlus2 className="h-4 w-4" />
-                </HeaderIconButton>
-                <HeaderIconButton label="Favorit" onClick={handleFavorite}>
-                  <Star className={cn("h-4 w-4", draft.isFavorite && "fill-amber-400 text-amber-500")} />
-                </HeaderIconButton>
-                <HeaderIconButton label="Löschen" onClick={handleDelete}>
-                  <Trash2 className="h-4 w-4" />
-                </HeaderIconButton>
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                <div className="flex gap-2">
+                  <HeaderIconButton
+                    label={didSave && !isDirty ? "Gespeichert" : "Speichern"}
+                    onClick={handleSave}
+                    className={cn(
+                      isDirty && "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800",
+                      didSave && !isDirty && "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-700",
+                    )}
+                  >
+                    {didSave && !isDirty ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+                  </HeaderIconButton>
+                  <HeaderIconButton label="Änderungen verwerfen" onClick={handleDiscard} disabled={!isDirty}>
+                    <RotateCcw className="h-4 w-4" />
+                  </HeaderIconButton>
+                </div>
+                <div className="flex gap-2">
+                  <HeaderIconButton
+                    label={didCopy ? "Kopiert" : "Kopieren"}
+                    onClick={handleCopy}
+                    className={cn(didCopy && "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-700")}
+                  >
+                    {didCopy ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  </HeaderIconButton>
+                  <HeaderIconButton label="Duplizieren" onClick={handleDuplicate}>
+                    <FilePlus2 className="h-4 w-4" />
+                  </HeaderIconButton>
+                </div>
+                <div className="flex gap-2">
+                  <HeaderIconButton label="Favorit" onClick={handleFavorite}>
+                    <Star className={cn("h-4 w-4", draft.isFavorite && "fill-amber-400 text-amber-500")} />
+                  </HeaderIconButton>
+                  <HeaderIconButton label="Löschen" onClick={handleDelete}>
+                    <Trash2 className="h-4 w-4" />
+                  </HeaderIconButton>
+                </div>
               </div>
             </div>
 
@@ -965,7 +974,7 @@ export function LibraryPage({
               description="Titel, Beschreibung, Kategorie, Tags und KI-Hilfen."
               isOpen={isMetadataOpen}
               onToggle={() => setIsMetadataOpen((current) => !current)}
-              className="mt-6"
+              className="mt-5"
             >
               <div className="grid gap-4">
                 <EntryWorkflowSteps
