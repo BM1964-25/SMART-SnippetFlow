@@ -914,7 +914,7 @@ export function LibraryPage({
 
       {draft && (
         <section className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-card">
-          <header className="shrink-0 border-b border-border px-8 pb-6 pt-8">
+          <header className="shrink-0 px-8 pb-6 pt-8">
             <div className="flex items-start justify-between gap-5">
               <div className="min-w-0 flex-1">
                 <div className="flex min-h-5 items-center gap-2">
