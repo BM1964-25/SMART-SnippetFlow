@@ -1317,12 +1317,12 @@ export function LibraryPage({
                 headerAside={preview ? <Badge>{preview.kind.toUpperCase()}</Badge> : <Badge>Inaktiv</Badge>}
                 bodyClassName="p-0"
               >
-              <div className="h-56 min-h-40 max-h-[65vh] resize-y overflow-hidden bg-background">
+              <div className="h-72 min-h-56 max-h-[72vh] resize-y overflow-auto bg-background">
                 <iframe
                   title={previewLabel}
                   sandbox=""
                   srcDoc={previewHtml}
-                  className="h-full w-full bg-white"
+                  className="block h-full w-full bg-white"
                 />
               </div>
               </CollapsiblePanel>
