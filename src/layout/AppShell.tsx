@@ -61,7 +61,10 @@ export function AppShell({
             <img src={appLogo} alt="SMART SnippetFlow" className="h-full w-full object-contain" />
           </div>
           <div className={cn("min-w-0 leading-tight", isCollapsed && "hidden")}>
-            <p className="truncate text-[15px] font-semibold tracking-[0.01em] text-foreground">SMART SnippetFlow</p>
+            <p className="truncate text-[15px] text-foreground">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">SMART</span>{" "}
+              <span className="font-semibold tracking-[0.01em]">SnippetFlow</span>
+            </p>
             <p className="mt-1 truncate text-[12px] text-muted-foreground">Lokale Wissensbasis</p>
           </div>
         </div>
