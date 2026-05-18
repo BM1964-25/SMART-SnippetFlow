@@ -1203,13 +1203,13 @@ export function LibraryPage({
                   {activePromptVariant?.note && <p className="mt-0.5 text-xs text-muted-foreground">{activePromptVariant.note}</p>}
                 </div>
                 {draft.type === "prompt" && (
-                  <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-background/80 p-2 shadow-sm">
+                  <div className="flex flex-wrap items-center gap-1 rounded-lg bg-muted/40 p-1">
                     <button
                       type="button"
                       onClick={() => setActivePromptVersionId("original")}
                       className={cn(
-                        "h-8 rounded-md border border-border bg-card px-3 text-xs font-medium shadow-sm hover:bg-muted",
-                        activePromptVersionId === "original" && "border-ring bg-muted text-foreground",
+                        "h-8 rounded-md px-3 text-xs font-medium text-muted-foreground hover:bg-background hover:text-foreground",
+                        activePromptVersionId === "original" && "bg-background text-foreground shadow-sm ring-1 ring-border",
                       )}
                     >
                       <span className="inline-flex items-center gap-1 leading-tight">
@@ -1225,8 +1225,8 @@ export function LibraryPage({
                         type="button"
                         onClick={() => setActivePromptVersionId(variant.id)}
                         className={cn(
-                          "h-8 rounded-md border border-border bg-card px-3 text-xs font-medium shadow-sm hover:bg-muted",
-                          activePromptVersionId === variant.id && "border-ring bg-muted text-foreground",
+                          "h-8 rounded-md px-3 text-xs font-medium text-muted-foreground hover:bg-background hover:text-foreground",
+                          activePromptVersionId === variant.id && "bg-background text-foreground shadow-sm ring-1 ring-border",
                         )}
                       >
                         <span className="inline-flex items-center gap-1 leading-tight">
