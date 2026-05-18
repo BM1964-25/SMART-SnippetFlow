@@ -1304,15 +1304,10 @@ export function LibraryPage({
                 description={draft.type === "code" ? "Isolierte Vorschau für HTML, CSS, JavaScript oder Markdown." : "Markdown-Vorschau für strukturierte Inhalte."}
                 isOpen={isPreviewOpen}
                 onToggle={() => setIsPreviewOpen((current) => !current)}
+                headerAside={preview ? <Badge>{preview.kind.toUpperCase()}</Badge> : <Badge>Inaktiv</Badge>}
+                bodyClassName="p-0"
               >
-              <div className="grid h-48 min-h-36 max-h-[60vh] resize-y grid-cols-[220px_minmax(0,1fr)] overflow-hidden rounded-xl border border-border bg-background shadow-sm">
-                <div className="border-r border-border bg-muted/20 p-4">
-                  <p className="text-sm font-semibold">{previewLabel}</p>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    {draft.type === "code" ? "Ausgabe für HTML, CSS, JavaScript oder Markdown." : "Markdown-Vorschau für strukturierte Inhalte."}
-                  </p>
-                  <div className="mt-3">{preview ? <Badge>{preview.kind.toUpperCase()}</Badge> : <Badge>Inaktiv</Badge>}</div>
-                </div>
+              <div className="h-56 min-h-40 max-h-[65vh] resize-y overflow-hidden bg-background">
                 <iframe
                   title={previewLabel}
                   sandbox=""
@@ -1564,6 +1559,7 @@ function CollapsiblePanel({
   description,
   isOpen,
   onToggle,
+  headerAside,
   className,
   bodyClassName,
   children,
@@ -1572,6 +1568,7 @@ function CollapsiblePanel({
   description?: string;
   isOpen: boolean;
   onToggle: () => void;
+  headerAside?: ReactNode;
   className?: string;
   bodyClassName?: string;
   children: ReactNode;
@@ -1584,11 +1581,14 @@ function CollapsiblePanel({
         className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/50"
         aria-expanded={isOpen}
       >
-        <span>
+        <span className="min-w-0">
           <span className="block text-sm font-semibold text-foreground">{title}</span>
           {description && <span className="mt-0.5 block text-xs text-muted-foreground">{description}</span>}
         </span>
-        {isOpen ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+        <span className="flex shrink-0 items-center gap-2">
+          {headerAside}
+          {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+        </span>
       </button>
       {isOpen && <div className={cn("border-t border-border p-4", bodyClassName)}>{children}</div>}
     </section>
