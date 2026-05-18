@@ -746,7 +746,7 @@ export function LibraryPage({
               <h1 className="text-2xl font-semibold tracking-normal">{viewTitle[activeView]}</h1>
               <p className="mt-1 text-sm text-muted-foreground">{viewDescription[activeView]}</p>
             </div>
-            <Button onClick={handleCreate}>
+            <Button onClick={handleCreate} className="min-w-24 justify-center">
               <FilePlus2 className="h-4 w-4" />
               Neu
             </Button>
