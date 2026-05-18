@@ -1503,9 +1503,12 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
         <HeaderIconButton
           label={isTextLarge ? "Schrift normal anzeigen" : "Schrift vergrößern"}
           onClick={() => setIsTextLarge((current) => !current)}
-          className={cn(isTextLarge && "border-ring text-foreground", "h-10 w-10")}
+          className={cn(isTextLarge && "border-ring bg-background text-foreground", "h-10 w-10")}
         >
-          <span className="text-[15px] font-normal leading-none tracking-normal">A+</span>
+          <span className="inline-flex items-baseline justify-center leading-none tracking-normal">
+            <span className="text-[14px] font-normal">A</span>
+            <span className="ml-0.5 text-[10px] font-normal">+</span>
+          </span>
         </HeaderIconButton>
       </div>
       <HeaderIconButton
