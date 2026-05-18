@@ -1505,7 +1505,7 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
           onClick={() => setIsTextLarge((current) => !current)}
           className={cn(isTextLarge && "border-ring text-foreground", "h-10 w-10")}
         >
-          <span className="text-[15px] font-semibold leading-none tracking-normal">A+</span>
+          <span className="text-[15px] font-normal leading-none tracking-normal">A+</span>
         </HeaderIconButton>
       </div>
       <HeaderIconButton
