@@ -930,7 +930,7 @@ export function LibraryPage({
                   <p className="mt-1 max-w-full truncate text-sm text-muted-foreground">{editorDescription[draft.type]}</p>
                 </div>
               </div>
-              <div className="flex shrink-0 flex-wrap items-center justify-end gap-0.5">
+              <div className="flex shrink-0 flex-wrap items-start justify-end gap-0.5 pt-0.5">
                 <HeaderIconButton
                   label={didSave && !isDirty ? "Gespeichert" : "Speichern"}
                   onClick={handleSave}
