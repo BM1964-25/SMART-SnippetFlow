@@ -56,13 +56,13 @@ export function AppShell({
           isCollapsed ? "w-20" : "w-64",
         )}
       >
-        <div className={cn("mb-8 flex items-center gap-3 px-2", isCollapsed && "justify-center px-0")}>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-background">
+        <div className={cn("mb-8 flex items-center gap-3.5 px-1.5", isCollapsed && "justify-center px-0")}>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/70 bg-background shadow-sm">
             <img src={appLogo} alt="SMART SnippetFlow" className="h-full w-full object-contain" />
           </div>
-          <div className={cn("min-w-0", isCollapsed && "hidden")}>
-            <p className="text-base font-semibold">SMART SnippetFlow</p>
-            <p className="text-xs text-muted-foreground">Lokale Wissensbasis</p>
+          <div className={cn("min-w-0 leading-tight", isCollapsed && "hidden")}>
+            <p className="truncate text-[15px] font-semibold tracking-[0.01em] text-foreground">SMART SnippetFlow</p>
+            <p className="mt-1 truncate text-[12px] text-muted-foreground">Lokale Wissensbasis</p>
           </div>
         </div>
 
