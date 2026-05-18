@@ -1704,7 +1704,7 @@ function PromptVariantWorkflowSteps({
   ];
 
   return (
-    <div className="rounded-xl border border-border bg-gradient-to-r from-slate-50 via-white to-cyan-50 px-4 py-3 shadow-sm">
+    <div className="rounded-xl border border-border bg-muted/20 px-4 py-3 shadow-sm">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Varianten-Workflow</p>
         <div className="flex flex-wrap items-center gap-2">
