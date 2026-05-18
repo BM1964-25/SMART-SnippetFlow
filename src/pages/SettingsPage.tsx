@@ -260,7 +260,7 @@ export function SettingsPage({
           <div className="mt-6 grid gap-4">
             <label className="grid gap-2 text-sm font-medium">
               Lizenzschlüssel
-              <Input value={draft.key} onChange={(event) => setDraft({ ...draft, key: event.target.value })} placeholder="SMART-XXXX-XXXX" />
+              <Input value={draft.key} onChange={(event) => setDraft({ ...draft, key: event.target.value })} placeholder="XXXX-XXXX-XXXX" />
             </label>
 
             <label className="grid gap-2 text-sm font-medium">
