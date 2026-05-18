@@ -101,14 +101,16 @@ export function AppShell({
         </button>
 
         <div className={cn("mt-3 rounded-md border border-border bg-background p-3", isCollapsed && "hidden")}>
-          <p className="text-xs font-medium">Lizenz</p>
-          <p className="mt-1 text-xs text-muted-foreground">{licenseLabel[licenseStatus]}</p>
-          <div className="mt-3 border-t border-border pt-3">
-            <p className="text-xs font-medium">KI</p>
-            <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center justify-between gap-3 text-xs">
+            <span className="font-medium">Lizenz</span>
+            <span className="text-muted-foreground">{licenseLabel[licenseStatus]}</span>
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3 text-xs">
+            <span className="font-medium">KI</span>
+            <span className="flex items-center gap-2 text-muted-foreground">
               <span className={cn("h-2 w-2 rounded-full", apiStatus === "active" ? "bg-emerald-500" : "bg-slate-300")} />
               {apiLabel[apiStatus]}
-            </p>
+            </span>
           </div>
         </div>
 
