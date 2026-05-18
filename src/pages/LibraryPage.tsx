@@ -96,6 +96,9 @@ export function LibraryPage({
   const [isRecentOpen, setIsRecentOpen] = useState(false);
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
   const [isTagCloudOpen, setIsTagCloudOpen] = useState(false);
+  const [isMetadataOpen, setIsMetadataOpen] = useState(true);
+  const [isEditorOpen, setIsEditorOpen] = useState(true);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(true);
   const [activePromptVersionId, setActivePromptVersionId] = useState<"original" | string>("original");
   const [isAiBusy, setIsAiBusy] = useState(false);
   const [aiNotice, setAiNotice] = useState<string | null>(null);
@@ -957,102 +960,109 @@ export function LibraryPage({
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4">
-              <EntryWorkflowSteps
-                entryType={draft.type}
-                hasContent={draft.content.trim().length > 0}
-                hasMetadata={Boolean(draft.description.trim() || draft.tags.length > 0 || draft.categoryName || draft.fieldValue)}
-                isSaved={!isDirty}
-              />
-
-              <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                Titel
-                <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="h-11 text-xl font-semibold" />
-              </label>
-
-              <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                Beschreibung
-                <textarea
-                  value={draft.description}
-                  onChange={(event) => setDraft({ ...draft, description: event.target.value })}
-                  placeholder="Beschreibung"
-                  className="min-h-14 resize-y rounded-md border border-input bg-background px-3 py-2 text-sm leading-6 outline-none focus:border-ring focus:ring-2 focus:ring-ring/15"
+            <CollapsiblePanel
+              title="Metadaten"
+              description="Titel, Beschreibung, Kategorie, Tags und KI-Hilfen."
+              isOpen={isMetadataOpen}
+              onToggle={() => setIsMetadataOpen((current) => !current)}
+              className="mt-6"
+            >
+              <div className="grid gap-4">
+                <EntryWorkflowSteps
+                  entryType={draft.type}
+                  hasContent={draft.content.trim().length > 0}
+                  hasMetadata={Boolean(draft.description.trim() || draft.tags.length > 0 || draft.categoryName || draft.fieldValue)}
+                  isSaved={!isDirty}
                 />
-              </label>
 
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2">
-                <p className="text-xs leading-5 text-muted-foreground">
-                  {draft.type === "prompt"
-                    ? "Füllt leere Titel-, Beschreibungs- und Kategoriefelder per KI. Bestehende manuelle Inhalte bleiben erhalten."
-                    : "Füllt Titel, Beschreibung, Kategorie und Tags per KI aus. Bestehende Inhalte bleiben erhalten."}
-                </p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button type="button" onClick={() => void handleAnalyzeMetadata()} variant="brand" disabled={isAiBusy}>
-                    {isAiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    Titel & Metadaten ausfüllen
-                  </Button>
-                  {aiNotice && <span className="text-xs text-muted-foreground">{aiNotice}</span>}
-                </div>
-              </div>
-
-              <div className={cn("grid gap-3", shouldShowPreview ? "grid-cols-3" : showAiSystemField ? "grid-cols-2" : "grid-cols-1")}>
                 <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                  Kategorie
-                  <SelectControl
-                    value={draft.categoryId ?? ""}
-                    onChange={(event) => {
-                      const category = categoryOptions.find((item) => item.id === event.target.value);
-                      setDraft({ ...draft, categoryId: category?.id, categoryName: category?.name });
-                    }}
-                    className="h-9"
-                  >
-                    <option value="">Ohne Kategorie</option>
-                    {categoryOptions.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </SelectControl>
+                  Titel
+                  <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="h-11 text-xl font-semibold" />
                 </label>
-                {showAiSystemField && (
+
+                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                  Beschreibung
+                  <textarea
+                    value={draft.description}
+                    onChange={(event) => setDraft({ ...draft, description: event.target.value })}
+                    placeholder="Beschreibung"
+                    className="min-h-14 resize-y rounded-md border border-input bg-background px-3 py-2 text-sm leading-6 outline-none focus:border-ring focus:ring-2 focus:ring-ring/15"
+                  />
+                </label>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2">
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    {draft.type === "prompt"
+                      ? "Füllt leere Titel-, Beschreibungs- und Kategoriefelder per KI. Bestehende manuelle Inhalte bleiben erhalten."
+                      : "Füllt Titel, Beschreibung, Kategorie und Tags per KI aus. Bestehende Inhalte bleiben erhalten."}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button type="button" onClick={() => void handleAnalyzeMetadata()} variant="brand" disabled={isAiBusy}>
+                      {isAiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                      Titel & Metadaten ausfüllen
+                    </Button>
+                    {aiNotice && <span className="text-xs text-muted-foreground">{aiNotice}</span>}
+                  </div>
+                </div>
+
+                <div className={cn("grid gap-3", shouldShowPreview ? "grid-cols-3" : showAiSystemField ? "grid-cols-2" : "grid-cols-1")}>
                   <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                    {activeFieldLabel}
+                    Kategorie
                     <SelectControl
-                      value={draft.fieldValue ?? ""}
-                      onChange={(event) => void handleFieldValueChange(event.target.value)}
+                      value={draft.categoryId ?? ""}
+                      onChange={(event) => {
+                        const category = categoryOptions.find((item) => item.id === event.target.value);
+                        setDraft({ ...draft, categoryId: category?.id, categoryName: category?.name });
+                      }}
                       className="h-9"
                     >
-                      <option value="">Nicht gesetzt</option>
-                    {activeFieldOptions.map((option) => (
-                      <option key={option.id} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </SelectControl>
-                </label>
-                )}
-                {shouldShowPreview && (
-                  <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                    {previewLabel}
-                    <SelectControl
-                      value={draft.previewKind ?? ""}
-                      onChange={(event) =>
-                        setDraft({ ...draft, previewKind: (event.target.value || undefined) as PreviewKind | undefined })
-                      }
-                      className="h-9"
-                    >
-                      <option value="">Keine Preview</option>
-                      {previewOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
+                      <option value="">Ohne Kategorie</option>
+                      {categoryOptions.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </SelectControl>
+                  </label>
+                  {showAiSystemField && (
+                    <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                      {activeFieldLabel}
+                      <SelectControl
+                        value={draft.fieldValue ?? ""}
+                        onChange={(event) => void handleFieldValueChange(event.target.value)}
+                        className="h-9"
+                      >
+                        <option value="">Nicht gesetzt</option>
+                      {activeFieldOptions.map((option) => (
+                        <option key={option.id} value={option.value}>
                           {option.label}
                         </option>
                       ))}
                     </SelectControl>
                   </label>
-                )}
-              </div>
+                  )}
+                  {shouldShowPreview && (
+                    <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                      {previewLabel}
+                      <SelectControl
+                        value={draft.previewKind ?? ""}
+                        onChange={(event) =>
+                          setDraft({ ...draft, previewKind: (event.target.value || undefined) as PreviewKind | undefined })
+                        }
+                        className="h-9"
+                      >
+                        <option value="">Keine Preview</option>
+                        {previewOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </SelectControl>
+                    </label>
+                  )}
+                </div>
 
-              <div className="grid gap-3 rounded-lg border border-border bg-background p-4">
+                <div className="grid gap-3 rounded-lg border border-border bg-background p-4">
                 <div className="grid grid-cols-[minmax(0,1fr)_168px_184px_40px_40px] gap-3">
                   <div className="relative">
                     <Input
@@ -1162,9 +1172,18 @@ export function LibraryPage({
 
               </div>
             </div>
+            </CollapsiblePanel>
           </header>
 
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-6">
+            <CollapsiblePanel
+              title="Editor"
+              description="Inhalt schreiben, Varianten bearbeiten und kopieren."
+              isOpen={isEditorOpen}
+              onToggle={() => setIsEditorOpen((current) => !current)}
+              className="min-h-0"
+              bodyClassName="min-h-0"
+            >
             <div
               className={cn(
                 "grid min-h-0 gap-1",
@@ -1277,8 +1296,15 @@ export function LibraryPage({
                 />
               )}
             </div>
+            </CollapsiblePanel>
 
             {shouldShowPreview && (
+              <CollapsiblePanel
+                title={previewLabel}
+                description={draft.type === "code" ? "Isolierte Vorschau für HTML, CSS, JavaScript oder Markdown." : "Markdown-Vorschau für strukturierte Inhalte."}
+                isOpen={isPreviewOpen}
+                onToggle={() => setIsPreviewOpen((current) => !current)}
+              >
               <div className="grid h-48 min-h-36 max-h-[60vh] resize-y grid-cols-[220px_minmax(0,1fr)] overflow-hidden rounded-xl border border-border bg-background shadow-sm">
                 <div className="border-r border-border bg-muted/20 p-4">
                   <p className="text-sm font-semibold">{previewLabel}</p>
@@ -1294,6 +1320,7 @@ export function LibraryPage({
                   className="h-full w-full bg-white"
                 />
               </div>
+              </CollapsiblePanel>
             )}
           </div>
         </section>
@@ -1529,6 +1556,42 @@ function HeaderIconButton({
         {label}
       </span>
     </div>
+  );
+}
+
+function CollapsiblePanel({
+  title,
+  description,
+  isOpen,
+  onToggle,
+  className,
+  bodyClassName,
+  children,
+}: {
+  title: string;
+  description?: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  className?: string;
+  bodyClassName?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className={cn("overflow-hidden rounded-xl border border-border bg-background shadow-sm", className)}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/50"
+        aria-expanded={isOpen}
+      >
+        <span>
+          <span className="block text-sm font-semibold text-foreground">{title}</span>
+          {description && <span className="mt-0.5 block text-xs text-muted-foreground">{description}</span>}
+        </span>
+        {isOpen ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+      </button>
+      {isOpen && <div className={cn("border-t border-border p-4", bodyClassName)}>{children}</div>}
+    </section>
   );
 }
 
