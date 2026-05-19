@@ -100,7 +100,7 @@ export function LibraryPage({
   const [isEditorOpen, setIsEditorOpen] = useState(true);
   const [isPreviewOpen, setIsPreviewOpen] = useState(true);
   const [activePromptVersionId, setActivePromptVersionId] = useState<"original" | string>("original");
-  const [isAiBusy, setIsAiBusy] = useState(false);
+  const [activeAiAction, setActiveAiAction] = useState<"metadata" | "variant" | null>(null);
   const [aiNotice, setAiNotice] = useState<string | null>(null);
   const { categories, fieldOptions, filteredEntries, entries, isLoading, saveEntry, duplicateEntry, toggleFavorite, deleteEntry, saveCategory, deleteCategory, createFieldOption } =
     useLibraryEntries(activeType, query);
@@ -108,6 +108,7 @@ export function LibraryPage({
   const availableTags = useMemo(() => {
     return [...new Set(entries.flatMap((entry) => entry.tags).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   }, [entries]);
+  const isAiBusy = activeAiAction !== null;
 
   const categoryOptions = useMemo(() => {
     const options = new Map<string, { id: string; name: string }>();
@@ -435,7 +436,7 @@ export function LibraryPage({
       return;
     }
 
-    setIsAiBusy(true);
+    setActiveAiAction("metadata");
     setAiNotice(null);
 
     try {
@@ -460,7 +461,7 @@ export function LibraryPage({
       const message = error instanceof Error ? error.message : "KI-Abfrage fehlgeschlagen";
       showAiMessage(message);
     } finally {
-      setIsAiBusy(false);
+      setActiveAiAction(null);
     }
   }
 
@@ -485,7 +486,7 @@ export function LibraryPage({
       return;
     }
 
-    setIsAiBusy(true);
+    setActiveAiAction(mode);
     setAiNotice(null);
 
     try {
@@ -502,7 +503,7 @@ export function LibraryPage({
       const message = error instanceof Error ? error.message : "KI-Abfrage fehlgeschlagen";
       showAiMessage(message);
     } finally {
-      setIsAiBusy(false);
+      setActiveAiAction(null);
     }
   }
 
@@ -1008,7 +1009,7 @@ export function LibraryPage({
                   </p>
                   <div className="flex flex-wrap items-center gap-2">
                     <Button type="button" onClick={() => void handleAnalyzeMetadata()} variant="brand" disabled={isAiBusy}>
-                      {isAiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                      {activeAiAction === "metadata" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                       Titel & Metadaten ausfüllen
                     </Button>
                     {aiNotice && <span className="text-xs text-muted-foreground">{aiNotice}</span>}
@@ -1254,6 +1255,7 @@ export function LibraryPage({
                 <PromptVariantWorkflowSteps
                   variantCount={promptVariants.length}
                   isBusy={isAiBusy}
+                  isVariantBusy={activeAiAction === "variant"}
                   onCreateAiVariant={() => void handleCreateAiVariant()}
                   onAddManualVariant={addManualPromptVariant}
                 />
@@ -1734,11 +1736,13 @@ function EntryWorkflowSteps({
 function PromptVariantWorkflowSteps({
   variantCount,
   isBusy,
+  isVariantBusy,
   onCreateAiVariant,
   onAddManualVariant,
 }: {
   variantCount: number;
   isBusy: boolean;
+  isVariantBusy: boolean;
   onCreateAiVariant: () => void;
   onAddManualVariant: () => void;
 }) {
@@ -1754,7 +1758,7 @@ function PromptVariantWorkflowSteps({
         <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Varianten-Workflow</p>
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" onClick={onCreateAiVariant} variant="brand" disabled={isBusy || variantCount >= 3} className="h-8">
-            {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {isVariantBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             KI-Variante
           </Button>
           <Button type="button" onClick={onAddManualVariant} variant="amber" disabled={variantCount >= 3} className="h-8">
