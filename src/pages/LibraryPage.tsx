@@ -17,6 +17,29 @@ const filters: Array<{ label: string; value: EntryType | "all" }> = [
   { label: "Notizen", value: "note" },
 ];
 
+const filterColorClass: Record<EntryType | "all", { idle: string; active: string }> = {
+  all: {
+    idle: "hover:border-slate-200 hover:bg-slate-50 hover:text-slate-800",
+    active: "border-slate-200 bg-slate-50 text-slate-800 ring-1 ring-slate-200",
+  },
+  prompt: {
+    idle: "hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800",
+    active: "border-sky-200 bg-sky-50 text-sky-800 ring-1 ring-sky-200",
+  },
+  code: {
+    idle: "hover:border-violet-200 hover:bg-violet-50 hover:text-violet-800",
+    active: "border-violet-200 bg-violet-50 text-violet-800 ring-1 ring-violet-200",
+  },
+  workflow: {
+    idle: "hover:border-teal-200 hover:bg-teal-50 hover:text-teal-800",
+    active: "border-teal-200 bg-teal-50 text-teal-800 ring-1 ring-teal-200",
+  },
+  note: {
+    idle: "hover:border-amber-200 hover:bg-amber-50 hover:text-amber-800",
+    active: "border-amber-200 bg-amber-50 text-amber-800 ring-1 ring-amber-200",
+  },
+};
+
 const entryRenderBatchSize = 80;
 
 const typeLabel: Record<EntryType, string> = {
@@ -798,8 +821,9 @@ export function LibraryPage({
                   key={filter.value}
                   onClick={() => handleTypeFilterChange(filter.value)}
                   className={cn(
-                    "h-8 rounded-md border border-transparent px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-                    activeType === filter.value && "border-border bg-muted text-foreground",
+                    "h-8 rounded-md border border-transparent px-3 text-sm text-muted-foreground transition-colors",
+                    filterColorClass[filter.value].idle,
+                    activeType === filter.value && filterColorClass[filter.value].active,
                   )}
                 >
                   {filter.label}
