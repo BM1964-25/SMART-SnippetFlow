@@ -271,7 +271,7 @@ export function LibraryPage({
       type,
       title: "Neuer Eintrag",
       description: "",
-      content: type === "code" ? "// Neues Snippet" : type === "note" ? "## Notiz\n\n" : "",
+      content: type === "code" ? "// Neues Snippet" : "",
       language: type === "code" ? "typescript" : "markdown",
       fieldValue: getDefaultFieldValue(type),
       tags: [],
@@ -1495,15 +1495,15 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
 
   const editorCopy: Record<Exclude<EntryType, "code">, { placeholder: string; className: string }> = {
     prompt: {
-      placeholder: "Prompt",
+      placeholder: "Prompt-Inhalt eingeben...",
       className: "text-[13px] leading-6",
     },
     workflow: {
-      placeholder: "Beschreibe die Schritte dieses Workflows...",
+      placeholder: "Workflow-Inhalt eingeben...",
       className: "text-[13px] leading-6",
     },
     note: {
-      placeholder: "Schreibe deine Markdown-Notiz...",
+      placeholder: "Notiz-Inhalt eingeben...",
       className: "text-[13px] leading-6",
     },
   };
