@@ -1318,7 +1318,12 @@ export function LibraryPage({
                     <option value="medium">Mittel</option>
                     <option value="weak">Schwach</option>
                   </SelectControl>
-                  <Button type="button" onClick={() => promotePromptVariant(activePromptVariant.id)} variant="success" className="h-9">
+                  <Button
+                    type="button"
+                    onClick={() => promotePromptVariant(activePromptVariant.id)}
+                    variant="outline"
+                    className="h-9 border-emerald-200 bg-emerald-100 text-emerald-800 hover:bg-emerald-200/70 hover:text-emerald-900"
+                  >
                     Original übernehmen
                   </Button>
                   <Button
