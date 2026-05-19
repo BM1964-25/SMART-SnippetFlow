@@ -44,10 +44,10 @@ const dataManagementItems = [
 
 const exportScopeOptions: Array<{ label: string; value: EntryType | "all" }> = [
   { label: "Gesamte Bibliothek", value: "all" },
-  { label: "Nur Prompts", value: "prompt" },
+  { label: "Nur Prompt", value: "prompt" },
   { label: "Nur Code", value: "code" },
-  { label: "Nur Workflows", value: "workflow" },
-  { label: "Nur Notizen", value: "note" },
+  { label: "Nur Workflow", value: "workflow" },
+  { label: "Nur Notiz", value: "note" },
 ];
 
 const defaultAnthropicModel = "claude-sonnet-4-5-20250929";
@@ -638,10 +638,10 @@ async function createRendererExportPayload(license: LicenseState, scope: EntryTy
 function scopeLabel(scope: EntryType | "all") {
   const labels: Record<EntryType | "all", string> = {
     all: "Gesamte Bibliothek",
-    prompt: "Prompts",
+    prompt: "Prompt",
     code: "Code",
-    workflow: "Workflows",
-    note: "Notizen",
+    workflow: "Workflow",
+    note: "Notiz",
   };
 
   return labels[scope];

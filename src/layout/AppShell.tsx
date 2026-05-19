@@ -6,10 +6,10 @@ import { cn } from "@/utils/cn";
 
 const navItems = [
   { id: "all", label: "Bibliothek", icon: Library },
-  { id: "prompts", label: "Prompts", icon: MessageSquareText },
+  { id: "prompts", label: "Prompt", icon: MessageSquareText },
   { id: "code", label: "Code", icon: Code2 },
-  { id: "workflows", label: "Workflows", icon: Workflow },
-  { id: "notes", label: "Notizen", icon: NotebookText },
+  { id: "workflows", label: "Workflow", icon: Workflow },
+  { id: "notes", label: "Notiz", icon: NotebookText },
   { id: "favorites", label: "Favoriten", icon: Star },
   { id: "settings", label: "Einstellungen", icon: Settings },
   { id: "help", label: "Hilfe", icon: CircleHelp },

@@ -11,10 +11,10 @@ import { cn } from "@/utils/cn";
 
 const filters: Array<{ label: string; value: EntryType | "all" }> = [
   { label: "Alle Typen", value: "all" },
-  { label: "Prompts", value: "prompt" },
+  { label: "Prompt", value: "prompt" },
   { label: "Code", value: "code" },
-  { label: "Workflows", value: "workflow" },
-  { label: "Notizen", value: "note" },
+  { label: "Workflow", value: "workflow" },
+  { label: "Notiz", value: "note" },
 ];
 
 const filterColorClass: Record<EntryType | "all", { idle: string; active: string }> = {
@@ -43,7 +43,7 @@ const filterColorClass: Record<EntryType | "all", { idle: string; active: string
 const entryRenderBatchSize = 80;
 
 const typeLabel: Record<EntryType, string> = {
-  prompt: "Prompts",
+  prompt: "Prompt",
   code: "Code",
   workflow: "Workflow",
   note: "Notiz",
@@ -52,8 +52,8 @@ const typeLabel: Record<EntryType, string> = {
 const editorTitle: Record<EntryType, string> = {
   prompt: "Prompt",
   code: "Code",
-  workflow: "Workflows",
-  note: "Notizen",
+  workflow: "Workflow",
+  note: "Notiz",
 };
 
 const editorDescription: Record<EntryType, string> = {
@@ -65,10 +65,10 @@ const editorDescription: Record<EntryType, string> = {
 
 const viewTitle: Record<Exclude<AppView, "settings">, string> = {
   all: "Bibliothek",
-  prompts: "Prompts",
+  prompts: "Prompt",
   code: "Code",
-  workflows: "Workflows",
-  notes: "Notizen",
+  workflows: "Workflow",
+  notes: "Notiz",
   favorites: "Favoriten",
   help: "Hilfe",
 };
@@ -1999,10 +1999,10 @@ function normalizeEntry(entry: LibraryEntry) {
 
 function createDashboardStats(entries: LibraryEntry[]) {
   return [
-    { label: "Prompts", value: entries.filter((entry) => entry.type === "prompt").length },
+    { label: "Prompt", value: entries.filter((entry) => entry.type === "prompt").length },
     { label: "Code", value: entries.filter((entry) => entry.type === "code").length },
-    { label: "Workflows", value: entries.filter((entry) => entry.type === "workflow").length },
-    { label: "Notizen", value: entries.filter((entry) => entry.type === "note").length },
+    { label: "Workflow", value: entries.filter((entry) => entry.type === "workflow").length },
+    { label: "Notiz", value: entries.filter((entry) => entry.type === "note").length },
     { label: "Favoriten", value: entries.filter((entry) => entry.isFavorite).length },
   ];
 }
