@@ -19,8 +19,8 @@ const filters: Array<{ label: string; value: EntryType | "all" }> = [
 
 const filterColorClass: Record<EntryType | "all", { idle: string; active: string }> = {
   all: {
-    idle: "hover:border-slate-300 hover:bg-slate-100 hover:text-slate-800",
-    active: "border-slate-300 bg-slate-100 text-slate-800 ring-1 ring-slate-300",
+    idle: "hover:border-rose-200 hover:bg-rose-100 hover:text-rose-800",
+    active: "border-rose-200 bg-rose-100 text-rose-800 ring-1 ring-rose-200",
   },
   prompt: {
     idle: "hover:border-blue-200 hover:bg-blue-100 hover:text-blue-800",
