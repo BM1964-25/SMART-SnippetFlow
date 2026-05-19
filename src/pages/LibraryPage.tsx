@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode, type SelectHTMLAttributes } from "react";
 import Editor from "@monaco-editor/react";
-import { Bold, Check, ChevronDown, ChevronRight, ChevronUp, Copy, FilePlus2, IndentIncrease, List, ListOrdered, Loader2, Plus, RotateCcw, Save, Search, Sparkles, Star, Trash2, Undo2, X } from "lucide-react";
+import { Bold, Check, ChevronDown, ChevronRight, ChevronUp, Copy, Eraser, FilePlus2, IndentIncrease, List, ListOrdered, Loader2, Plus, RotateCcw, Save, Search, Sparkles, Star, Trash2, Undo2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1219,8 +1219,8 @@ export function LibraryPage({
                       type="button"
                       onClick={() => setActivePromptVersionId("original")}
                       className={cn(
-                        "h-8 rounded-md px-3 text-xs font-medium text-muted-foreground hover:bg-background hover:text-foreground",
-                        activePromptVersionId === "original" && "bg-background text-foreground shadow-sm ring-1 ring-border",
+                        "h-8 rounded-md border border-transparent px-3 text-xs font-medium text-muted-foreground hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800",
+                        activePromptVersionId === "original" && "border-sky-200 bg-sky-50 text-sky-800 shadow-sm ring-1 ring-sky-200",
                       )}
                     >
                       <span className="inline-flex items-center gap-1 leading-tight">
@@ -1236,8 +1236,14 @@ export function LibraryPage({
                         type="button"
                         onClick={() => setActivePromptVersionId(variant.id)}
                         className={cn(
-                          "h-8 rounded-md px-3 text-xs font-medium text-muted-foreground hover:bg-background hover:text-foreground",
-                          activePromptVersionId === variant.id && "bg-background text-foreground shadow-sm ring-1 ring-border",
+                          "h-8 rounded-md border border-transparent px-3 text-xs font-medium text-muted-foreground",
+                          variant.source === "ai"
+                            ? "hover:border-teal-200 hover:bg-teal-50 hover:text-teal-800"
+                            : "hover:border-amber-200 hover:bg-amber-50 hover:text-amber-800",
+                          activePromptVersionId === variant.id &&
+                            (variant.source === "ai"
+                              ? "border-teal-200 bg-teal-50 text-teal-800 shadow-sm ring-1 ring-teal-200"
+                              : "border-amber-200 bg-amber-50 text-amber-800 shadow-sm ring-1 ring-amber-200"),
                         )}
                       >
                         <span className="inline-flex items-center gap-1 leading-tight">
@@ -1373,22 +1379,52 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
     window.setTimeout(() => setDidCopy(false), 1500);
   }
 
+  const pushUndoState = () => {
+    const last = undoStackRef.current.at(-1);
+    if (last !== entry.content) {
+      undoStackRef.current = [...undoStackRef.current.slice(-29), entry.content];
+    }
+  };
+
+  function handleClearContent() {
+    if (!entry.content) {
+      return;
+    }
+
+    pushUndoState();
+    onChange("");
+    window.requestAnimationFrame(() => textareaRef.current?.focus());
+  }
+
   if (entry.type === "code") {
     return (
       <div className="relative h-[360px] min-h-56 max-h-[70vh] resize-y overflow-hidden rounded-lg border border-border bg-background">
-        <button
-          type="button"
-          onClick={() => void handleEditorCopy()}
-          title={didCopy ? "Kopiert" : "Inhalt kopieren"}
-          aria-label={didCopy ? "Kopiert" : "Inhalt kopieren"}
-          className={cn(
-            "absolute right-3 top-3 z-10 flex h-12 w-16 flex-col items-center justify-center gap-0.5 rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground",
-            didCopy && "border-emerald-500 bg-emerald-50 text-emerald-700",
-          )}
-        >
-          {didCopy ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-          <span className="text-[9px] font-medium leading-none">{didCopy ? "Kopiert" : "Kopieren"}</span>
-        </button>
+        <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void handleEditorCopy()}
+            title={didCopy ? "Kopiert" : "Inhalt kopieren"}
+            aria-label={didCopy ? "Kopiert" : "Inhalt kopieren"}
+            className={cn(
+              "flex h-12 w-16 flex-col items-center justify-center gap-0.5 rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground",
+              didCopy && "border-emerald-500 bg-emerald-50 text-emerald-700",
+            )}
+          >
+            {didCopy ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            <span className="text-[9px] font-medium leading-none">{didCopy ? "Kopiert" : "Kopieren"}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleClearContent}
+            title="Inhalt leeren"
+            aria-label="Inhalt leeren"
+            disabled={!entry.content}
+            className="flex h-12 w-16 flex-col items-center justify-center gap-0.5 rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Eraser className="h-4 w-4" />
+            <span className="text-[9px] font-medium leading-none">Leeren</span>
+          </button>
+        </div>
         <Editor
           height="100%"
           value={entry.content}
@@ -1425,12 +1461,6 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
     },
   };
   const copy = editorCopy[entry.type];
-  const pushUndoState = () => {
-    const last = undoStackRef.current.at(-1);
-    if (last !== entry.content) {
-      undoStackRef.current = [...undoStackRef.current.slice(-29), entry.content];
-    }
-  };
   const updateContent = (content: string) => {
     pushUndoState();
     onChange(content);
@@ -1523,13 +1553,23 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
           </span>
         </HeaderIconButton>
       </div>
-      <HeaderIconButton
-        label={didCopy ? "Kopiert" : "Inhalt kopieren"}
-        onClick={() => void handleEditorCopy()}
-        className={cn("absolute right-3 top-3 z-10 h-10 w-10", didCopy && "border-emerald-500 bg-emerald-50 text-emerald-700")}
-      >
-        {didCopy ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
-      </HeaderIconButton>
+      <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
+        <HeaderIconButton
+          label={didCopy ? "Kopiert" : "Inhalt kopieren"}
+          onClick={() => void handleEditorCopy()}
+          className={cn("h-10 w-10", didCopy && "border-emerald-500 bg-emerald-50 text-emerald-700")}
+        >
+          {didCopy ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
+        </HeaderIconButton>
+        <HeaderIconButton
+          label="Inhalt leeren"
+          onClick={handleClearContent}
+          disabled={!entry.content}
+          className="h-10 w-10 text-muted-foreground hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+        >
+          <Eraser className="h-5 w-5" />
+        </HeaderIconButton>
+      </div>
       <textarea
         ref={textareaRef}
         value={entry.content}
@@ -1537,7 +1577,7 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
         placeholder={copy.placeholder}
         spellCheck
         className={cn(
-          "h-full w-full resize-none bg-transparent px-6 pb-5 pt-14 pr-14 text-foreground outline-none placeholder:text-muted-foreground",
+          "h-full w-full resize-none bg-transparent px-6 pb-5 pt-14 pr-24 text-foreground outline-none placeholder:text-muted-foreground",
           copy.className,
           isTextLarge && "text-[15px] leading-7",
         )}
