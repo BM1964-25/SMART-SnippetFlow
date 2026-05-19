@@ -763,8 +763,8 @@ export function LibraryPage({
 
   return (
     <div className="grid h-full min-h-0 grid-cols-[minmax(360px,0.82fr)_minmax(520px,1.18fr)] overflow-hidden">
-      <section className="flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-border bg-background">
-        <header className="shrink-0 border-b border-border px-8 pb-5 pt-8">
+      <section className="min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain border-r border-border bg-background">
+        <header className="border-b border-border px-8 pb-5 pt-8">
           <div className="flex min-h-12 items-start justify-between gap-4">
             <div>
               <h1 className="text-2xl font-semibold tracking-normal">{viewTitle[activeView]}</h1>
@@ -841,7 +841,7 @@ export function LibraryPage({
           </div>
         </header>
 
-        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-6 py-4">
+        <div className="min-h-0 min-w-0 px-6 py-4">
           {activeView === "all" && (
             <div className="mb-4 grid gap-3">
               <div className="grid grid-cols-6 gap-2">
