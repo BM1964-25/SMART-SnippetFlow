@@ -505,7 +505,8 @@ async function analyzePromptWithAnthropic(request: AiPromptAnalysisRequest): Pro
   }
 
   const entryType = request.entryType ?? "prompt";
-  const variantCount = entryType === "prompt" ? Math.max(0, Math.min(request.variantCount ?? 1, 3)) : 0;
+  const isVariantRequest = request.purpose === "variant" && entryType === "prompt";
+  const variantCount = isVariantRequest ? Math.max(1, Math.min(request.variantCount ?? 1, 3)) : 0;
   const entryTypeLabel: Record<EntryType, string> = {
     prompt: "Prompt",
     code: "Code",
@@ -546,7 +547,11 @@ async function analyzePromptWithAnthropic(request: AiPromptAnalysisRequest): Pro
                 },
                 variants: {
                   type: "array",
-                  description: "Nur für Prompts: verbesserte Varianten. Für andere Typen leer.",
+                  description: isVariantRequest
+                    ? `Exakt ${variantCount} verbesserte Prompt-Variante(n).`
+                    : "Für Metadaten-Anfragen und andere Typen leer.",
+                  minItems: isVariantRequest ? variantCount : 0,
+                  maxItems: variantCount,
                   items: {
                     type: "object",
                     additionalProperties: false,
@@ -568,11 +573,15 @@ async function analyzePromptWithAnthropic(request: AiPromptAnalysisRequest): Pro
           {
             role: "user",
             content: [
-            `Analysiere diesen ${entryTypeLabel[entryType]} für eine lokale Bibliothek.`,
-            "Erstelle kurze, professionelle Metadaten.",
-            entryType === "prompt"
-              ? "Zusätzlich sollst du exakt die gewünschte Anzahl verbesserter Varianten erzeugen."
-              : "Es werden keine Varianten benötigt, nur Metadaten und eine saubere Struktur.",
+            isVariantRequest
+              ? "Erstelle eine konkrete, verbesserte Prompt-Variante. Der Varianten-Text muss vollständig im Feld variants[0].content stehen."
+              : `Analysiere diesen ${entryTypeLabel[entryType]} für eine lokale Bibliothek.`,
+            isVariantRequest
+              ? "Metadaten dürfen knapp sein, aber die Variante ist zwingend erforderlich."
+              : "Erstelle kurze, professionelle Metadaten.",
+            isVariantRequest
+              ? `Erzeuge exakt ${variantCount} Variante(n). Das Feld variants darf nicht leer sein.`
+              : "Es werden keine Varianten benötigt. Gib variants als leeres Array zurück.",
             `Gewünschte Varianten: ${variantCount}`,
             `Bestehende Tags: ${request.existingTags.join(", ") || "keine"}`,
             `Bestehende Kategorien: ${request.existingCategories.join(", ") || "keine"}`,

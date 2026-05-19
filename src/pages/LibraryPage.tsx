@@ -469,6 +469,7 @@ export function LibraryPage({
         existingCategories: categoryOptions.map((category) => category.name),
         variantCount: 0,
         entryType,
+        purpose: "metadata",
       });
 
       if (entryType === "prompt") {
@@ -522,13 +523,14 @@ export function LibraryPage({
         existingCategories: categoryOptions.map((category) => category.name),
         variantCount: 1,
         entryType: "prompt",
+        purpose: "variant",
       });
 
-      await applyAiPromptResult(result, mode);
       if (mode === "variant" && result.variants.length === 0) {
         showAiMessage("Keine KI-Variante erhalten. Bitte erneut versuchen.");
         return;
       }
+      await applyAiPromptResult(result, mode);
       showAiMessage(mode === "metadata" ? "KI-Vorschläge übernommen" : "KI-Variante erstellt");
     } catch (error) {
       const message = error instanceof Error ? error.message : "KI-Abfrage fehlgeschlagen";
@@ -1493,7 +1495,7 @@ function EntryContentEditor({ entry, onChange, onCopy }: { entry: LibraryEntry; 
 
   const editorCopy: Record<Exclude<EntryType, "code">, { placeholder: string; className: string }> = {
     prompt: {
-      placeholder: "Prompts-Inhalt eingeben...",
+      placeholder: "Prompt",
       className: "text-[13px] leading-6",
     },
     workflow: {

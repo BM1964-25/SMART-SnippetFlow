@@ -107,6 +107,7 @@ export interface AiPromptAnalysisRequest {
   existingCategories: string[];
   variantCount?: number;
   entryType?: EntryType;
+  purpose?: "metadata" | "variant";
 }
 
 export interface AiPromptAnalysisResult {
