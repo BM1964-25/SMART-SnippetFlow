@@ -19,24 +19,24 @@ const filters: Array<{ label: string; value: EntryType | "all" }> = [
 
 const filterColorClass: Record<EntryType | "all", { idle: string; active: string }> = {
   all: {
-    idle: "hover:border-stone-200 hover:bg-stone-50 hover:text-stone-700",
-    active: "border-stone-200 bg-stone-50 text-stone-700 ring-1 ring-stone-200",
+    idle: "hover:border-slate-300 hover:bg-slate-100 hover:text-slate-800",
+    active: "border-slate-300 bg-slate-100 text-slate-800 ring-1 ring-slate-300",
   },
   prompt: {
-    idle: "hover:border-blue-100 hover:bg-blue-50/70 hover:text-blue-700",
-    active: "border-blue-100 bg-blue-50/80 text-blue-700 ring-1 ring-blue-100",
+    idle: "hover:border-blue-200 hover:bg-blue-100 hover:text-blue-800",
+    active: "border-blue-200 bg-blue-100 text-blue-800 ring-1 ring-blue-200",
   },
   code: {
-    idle: "hover:border-violet-100 hover:bg-violet-50/70 hover:text-violet-700",
-    active: "border-violet-100 bg-violet-50/80 text-violet-700 ring-1 ring-violet-100",
+    idle: "hover:border-violet-200 hover:bg-violet-100 hover:text-violet-800",
+    active: "border-violet-200 bg-violet-100 text-violet-800 ring-1 ring-violet-200",
   },
   workflow: {
-    idle: "hover:border-emerald-100 hover:bg-emerald-50/70 hover:text-emerald-700",
-    active: "border-emerald-100 bg-emerald-50/80 text-emerald-700 ring-1 ring-emerald-100",
+    idle: "hover:border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800",
+    active: "border-emerald-200 bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200",
   },
   note: {
-    idle: "hover:border-amber-100 hover:bg-amber-50/70 hover:text-amber-700",
-    active: "border-amber-100 bg-amber-50/80 text-amber-700 ring-1 ring-amber-100",
+    idle: "hover:border-amber-200 hover:bg-amber-100 hover:text-amber-800",
+    active: "border-amber-200 bg-amber-100 text-amber-800 ring-1 ring-amber-200",
   },
 };
 
