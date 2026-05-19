@@ -1032,7 +1032,13 @@ export function LibraryPage({
                       : "Füllt Titel, Beschreibung, Kategorie und Tags per KI aus. Bestehende Inhalte bleiben erhalten."}
                   </p>
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button type="button" onClick={() => void handleAnalyzeMetadata()} variant="brand" disabled={isAiBusy}>
+                    <Button
+                      type="button"
+                      onClick={() => void handleAnalyzeMetadata()}
+                      variant="outline"
+                      disabled={isAiBusy}
+                      className="border-blue-200 bg-blue-100 text-blue-800 hover:bg-blue-200/70 hover:text-blue-900"
+                    >
                       {activeAiAction === "metadata" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                       Titel & Metadaten ausfüllen
                     </Button>
@@ -1821,11 +1827,23 @@ function PromptVariantWorkflowSteps({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Varianten-Workflow</p>
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" onClick={onCreateAiVariant} variant="brand" disabled={isBusy || variantCount >= 3} className="h-8">
+          <Button
+            type="button"
+            onClick={onCreateAiVariant}
+            variant="outline"
+            disabled={isBusy || variantCount >= 3}
+            className="h-8 border-emerald-200 bg-emerald-100 text-emerald-800 hover:bg-emerald-200/70 hover:text-emerald-900"
+          >
             {isVariantBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             KI-Variante
           </Button>
-          <Button type="button" onClick={onAddManualVariant} variant="amber" disabled={variantCount >= 3} className="h-8">
+          <Button
+            type="button"
+            onClick={onAddManualVariant}
+            variant="outline"
+            disabled={variantCount >= 3}
+            className="h-8 border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-200/70 hover:text-amber-900"
+          >
             <Plus className="h-4 w-4" />
             Original als Variante kopieren
           </Button>
