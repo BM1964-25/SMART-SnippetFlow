@@ -123,7 +123,8 @@ export function LibraryPage({
   const [isEditorOpen, setIsEditorOpen] = useState(true);
   const [isPreviewOpen, setIsPreviewOpen] = useState(true);
   const [activePromptVersionId, setActivePromptVersionId] = useState<"original" | string>("original");
-  const [activeAiAction, setActiveAiAction] = useState<"metadata" | "variant" | null>(null);
+  const [isMetadataBusy, setIsMetadataBusy] = useState(false);
+  const [isVariantBusy, setIsVariantBusy] = useState(false);
   const [aiNotice, setAiNotice] = useState<string | null>(null);
   const { categories, fieldOptions, filteredEntries, entries, isLoading, saveEntry, duplicateEntry, toggleFavorite, deleteEntry, saveCategory, deleteCategory, createFieldOption } =
     useLibraryEntries(activeType, query);
@@ -131,7 +132,6 @@ export function LibraryPage({
   const availableTags = useMemo(() => {
     return [...new Set(entries.flatMap((entry) => entry.tags).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   }, [entries]);
-  const isAiBusy = activeAiAction !== null;
 
   const categoryOptions = useMemo(() => {
     const options = new Map<string, { id: string; name: string }>();
@@ -459,16 +459,15 @@ export function LibraryPage({
       return;
     }
 
-    setActiveAiAction("metadata");
+    setIsMetadataBusy(true);
     setAiNotice(null);
 
     try {
-      const variants = draft.promptVariants ?? [];
       const result = await window.snippetFlow.ai.analyzePrompt({
         prompt: draft.content,
         existingTags: availableTags,
         existingCategories: categoryOptions.map((category) => category.name),
-        variantCount: entryType === "prompt" && variants.length < 3 ? 1 : 0,
+        variantCount: 0,
         entryType,
       });
 
@@ -484,7 +483,7 @@ export function LibraryPage({
       const message = error instanceof Error ? error.message : "KI-Abfrage fehlgeschlagen";
       showAiMessage(message);
     } finally {
-      setActiveAiAction(null);
+      setIsMetadataBusy(false);
     }
   }
 
@@ -509,7 +508,11 @@ export function LibraryPage({
       return;
     }
 
-    setActiveAiAction(mode);
+    if (mode === "metadata") {
+      setIsMetadataBusy(true);
+    } else {
+      setIsVariantBusy(true);
+    }
     setAiNotice(null);
 
     try {
@@ -517,21 +520,43 @@ export function LibraryPage({
         prompt: draft.content,
         existingTags: availableTags,
         existingCategories: categoryOptions.map((category) => category.name),
-        variantCount: variants.length < 3 ? 1 : 0,
+        variantCount: 1,
+        entryType: "prompt",
       });
 
       await applyAiPromptResult(result, mode);
+      if (mode === "variant" && result.variants.length === 0) {
+        showAiMessage("Keine KI-Variante erhalten. Bitte erneut versuchen.");
+        return;
+      }
       showAiMessage(mode === "metadata" ? "KI-Vorschläge übernommen" : "KI-Variante erstellt");
     } catch (error) {
       const message = error instanceof Error ? error.message : "KI-Abfrage fehlgeschlagen";
       showAiMessage(message);
     } finally {
-      setActiveAiAction(null);
+      if (mode === "metadata") {
+        setIsMetadataBusy(false);
+      } else {
+        setIsVariantBusy(false);
+      }
     }
   }
 
   async function applyAiPromptResult(result: AiPromptAnalysisResult, mode: "metadata" | "variant") {
     if (!draft || draft.type !== "prompt") {
+      return;
+    }
+
+    const categoryPatch = draft.categoryId ? {} : await resolveAiCategoryPatch(result.categoryName);
+
+    if (mode === "metadata") {
+      setDraft({
+        ...draft,
+        title: shouldAutofillTitle(draft.title) && result.title ? result.title : draft.title,
+        description: !draft.description.trim() && result.description ? result.description : draft.description,
+        tags: mergeTags(draft.tags, result.tags),
+        ...categoryPatch,
+      });
       return;
     }
 
@@ -551,20 +576,6 @@ export function LibraryPage({
             ),
           ]
         : currentVariants;
-
-    const categoryPatch = draft.categoryId ? {} : await resolveAiCategoryPatch(result.categoryName);
-
-    if (mode === "metadata") {
-      setDraft({
-        ...draft,
-        title: shouldAutofillTitle(draft.title) && result.title ? result.title : draft.title,
-        description: !draft.description.trim() && result.description ? result.description : draft.description,
-        tags: mergeTags(draft.tags, result.tags),
-        ...categoryPatch,
-        promptVariants: nextVariants,
-      });
-      return;
-    }
 
     setDraft({ ...draft, promptVariants: nextVariants });
     const addedVariant = nextVariants.at(-1);
@@ -1036,10 +1047,10 @@ export function LibraryPage({
                       type="button"
                       onClick={() => void handleAnalyzeMetadata()}
                       variant="outline"
-                      disabled={isAiBusy}
+                      disabled={isMetadataBusy}
                       className="border-blue-200 bg-blue-100 text-blue-800 hover:bg-blue-200/70 hover:text-blue-900"
                     >
-                      {activeAiAction === "metadata" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                      {isMetadataBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                       Titel & Metadaten ausfüllen
                     </Button>
                     {aiNotice && <span className="text-xs text-muted-foreground">{aiNotice}</span>}
@@ -1290,8 +1301,7 @@ export function LibraryPage({
               {draft.type === "prompt" && (
                 <PromptVariantWorkflowSteps
                   variantCount={promptVariants.length}
-                  isBusy={isAiBusy}
-                  isVariantBusy={activeAiAction === "variant"}
+                  isVariantBusy={isVariantBusy}
                   onCreateAiVariant={() => void handleCreateAiVariant()}
                   onAddManualVariant={addManualPromptVariant}
                 />
@@ -1810,13 +1820,11 @@ function EntryWorkflowSteps({
 
 function PromptVariantWorkflowSteps({
   variantCount,
-  isBusy,
   isVariantBusy,
   onCreateAiVariant,
   onAddManualVariant,
 }: {
   variantCount: number;
-  isBusy: boolean;
   isVariantBusy: boolean;
   onCreateAiVariant: () => void;
   onAddManualVariant: () => void;
@@ -1836,7 +1844,7 @@ function PromptVariantWorkflowSteps({
             type="button"
             onClick={onCreateAiVariant}
             variant="outline"
-            disabled={isBusy || variantCount >= 3}
+            disabled={isVariantBusy || variantCount >= 3}
             className="h-8 border-blue-200 bg-blue-100 text-blue-800 hover:bg-blue-200/70 hover:text-blue-900"
           >
             {isVariantBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
