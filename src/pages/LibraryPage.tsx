@@ -1763,7 +1763,7 @@ function PromptVariantWorkflowSteps({
           </Button>
           <Button type="button" onClick={onAddManualVariant} variant="amber" disabled={variantCount >= 3} className="h-8">
             <Plus className="h-4 w-4" />
-            Variante hinzufügen
+            Original als Variante kopieren
           </Button>
           <span className="text-[11px] text-muted-foreground">{variantCount}/3 Varianten</span>
         </div>
